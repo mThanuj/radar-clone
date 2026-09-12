@@ -8,6 +8,7 @@ import {
   SUBSTATE_LABEL,
 } from "@/lib/radar/taxonomy";
 import { fullDate } from "@/lib/radar/format";
+import { noteRecipients } from "@/server/context";
 import { fanOut } from "@/server/notifications/fanout";
 import type { Tx } from "@/server/tx";
 
@@ -207,6 +208,7 @@ export async function recordActivity(
     commentId?: string;
     note?: string;
     direct?: { userId: string; reason: NotificationReason }[];
+    commentExcerpt?: string | null;
     notify?: boolean;
   },
 ) {
@@ -243,15 +245,22 @@ export async function recordActivity(
   });
 
   if (args.notify !== false) {
-    await fanOut(tx, {
+    // The diff drives which reason each recipient gets, so hand it over whole
+    // rather than a boolean about state.
+    const recipients = await fanOut(tx, {
       radarId: args.radarId,
       eventId: event.id,
       actorId: args.actorId,
       kind: args.kind,
+      changes,
       direct: args.direct,
-      stateChanged: changes.some((c) => c.field === "state"),
+      commentExcerpt: args.commentExcerpt,
     });
+    // Surfaced to the enclosing withAuditResult so the action can push to
+    // these people once the transaction has actually committed.
+    noteRecipients(recipients);
+    return { ...event, recipients };
   }
 
-  return event;
+  return { ...event, recipients: [] as string[] };
 }

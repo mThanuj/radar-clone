@@ -1,8 +1,12 @@
 import "server-only";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
+import { hasMailExchanger } from "@/server/email/domain-check";
+import { renderVerificationEmail } from "@/server/email/templates";
+import { fromAddress, getTransport } from "@/server/email/transport";
 
 /**
  * Derive a Radar-style handle ("tmullaguri") from an email address, since
@@ -79,9 +83,26 @@ export const auth = betterAuth({
   trustedOrigins,
   emailAndPassword: {
     enabled: true,
-    // No mail service is wired up, so verification would lock everyone out.
+    // Soft verification: we send the link, but an unverified account still
+    // works. Requiring it would mean a broken SMTP config locks everyone out,
+    // including whoever needs to log in and fix it.
     requireEmailVerification: false,
     minPasswordLength: 8,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60 * 24,
+    sendVerificationEmail: async ({ user, url }) => {
+      const rendered = renderVerificationEmail({ name: user.name, url });
+      await getTransport().sendMail({
+        from: fromAddress(),
+        to: user.email,
+        subject: rendered.subject,
+        text: rendered.text,
+        html: rendered.html,
+      });
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30,
@@ -109,9 +130,16 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => ({
-          data: { ...user, handle: await deriveHandle(user.email) },
-        }),
+        before: async (user) => {
+          // Reject addresses whose domain could never receive mail. Fails
+          // open on any DNS trouble — see hasMailExchanger.
+          if (!(await hasMailExchanger(user.email))) {
+            throw new APIError("BAD_REQUEST", {
+              message: `${user.email.split("@")[1]} doesn't look like it can receive email. Check the spelling.`,
+            });
+          }
+          return { data: { ...user, handle: await deriveHandle(user.email) } };
+        },
       },
     },
   },

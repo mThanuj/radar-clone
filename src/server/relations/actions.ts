@@ -10,10 +10,13 @@ import {
   RELATION_META,
   wouldCreateCycle,
 } from "@/lib/radar/relations";
+import { scheduleEmailDispatch } from "@/server/email/outbox";
 import { actionError, type ActionResult } from "@/server/action-result";
 import { recordActivity } from "@/server/activity/record";
-import { withAudit } from "@/server/context";
+import { withAuditResult } from "@/server/context";
 import { requireUser } from "@/server/guards";
+import { schedulePush } from "@/server/realtime/notify";
+import { radarAudience } from "@/server/notifications/fanout";
 import type { Tx } from "@/server/tx";
 
 const addSchema = z.object({
@@ -67,7 +70,7 @@ export async function addRelationAction(
     });
     if (existing) return { ok: false, error: "That relationship already exists." };
 
-    await withAudit(user.id, () =>
+    const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
         await tx.radarRelation.create({
           data: { sourceId, targetId, type, note: note ?? null, createdById: user.id },
@@ -85,12 +88,42 @@ export async function addRelationAction(
             },
           ],
         });
+
+        // …and on the other radar, whose followers are the ones actually
+        // affected when it becomes blocked. A BLOCKS edge means the target is
+        // now waiting on something.
+        const acting = await tx.radar.findUniqueOrThrow({
+          where: { id: radarId },
+          select: { number: true, title: true },
+        });
+        const audience = await radarAudience(tx as Tx, target.id);
+
+        if (audience.length > 0) {
+          await recordActivity(tx as Tx, {
+            radarId: target.id,
+            actorId: user.id,
+            kind: "RELATION_ADDED",
+            changes: [
+              {
+                field: `relation.${type}`,
+                toValue: radarId,
+                toLabel: `${acting.number} — ${acting.title}`,
+              },
+            ],
+            direct: audience.map((userId) => ({
+              userId,
+              reason: type === "BLOCKS" ? ("BLOCKED" as const) : ("RELATED" as const),
+            })),
+          });
+        }
       }),
     );
 
     revalidatePath(`/radars/${number}`);
     revalidatePath(`/radars/${targetNumber}`);
     revalidatePath("/timeline");
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return actionError(error);
@@ -125,7 +158,7 @@ export async function removeRelationAction(
     const other =
       relation.sourceId === radarId ? relation.target : relation.source;
 
-    await withAudit(user.id, () =>
+    const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
         await tx.radarRelation.delete({ where: { id: relationId } });
         await recordActivity(tx as Tx, {
@@ -145,6 +178,8 @@ export async function removeRelationAction(
 
     revalidatePath(`/radars/${number}`);
     revalidatePath("/timeline");
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return actionError(error);

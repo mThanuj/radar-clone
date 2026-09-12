@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { SubscriberRole } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
+import { scheduleEmailDispatch } from "@/server/email/outbox";
 import { actionError, type ActionResult } from "@/server/action-result";
 import { recordActivity } from "@/server/activity/record";
-import { withAudit } from "@/server/context";
+import { withAuditResult } from "@/server/context";
 import { requireUser } from "@/server/guards";
+import { schedulePush } from "@/server/realtime/notify";
 import type { Tx } from "@/server/tx";
 
 const addSchema = z.object({
@@ -30,7 +32,7 @@ export async function addSubscriberAction(
     });
     if (!person) return { ok: false, error: "No such person." };
 
-    await withAudit(actor.id, () =>
+    const { recipients } = await withAuditResult(actor.id, () =>
       db.$transaction(async (tx) => {
         await tx.radarSubscriber.upsert({
           where: { radarId_userId_role: { radarId, userId, role } },
@@ -48,13 +50,19 @@ export async function addSubscriberAction(
               toLabel: person.name,
             },
           ],
-          direct:
-            role === "CC" ? [{ userId, reason: "CC_ADDED" as const }] : undefined,
+          direct: [
+            {
+              userId,
+              reason: role === "CC" ? ("CC_ADDED" as const) : ("WATCHING_ADDED" as const),
+            },
+          ],
         });
       }),
     );
 
     revalidatePath(`/radars/${number}`);
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return actionError(error);
@@ -80,7 +88,7 @@ export async function removeSubscriberAction(
     });
     if (!row) return { ok: false, error: "Already removed." };
 
-    await withAudit(actor.id, () =>
+    const { recipients } = await withAuditResult(actor.id, () =>
       db.$transaction(async (tx) => {
         await tx.radarSubscriber.delete({ where: { id: subscriberId } });
         await recordActivity(tx as Tx, {
@@ -100,6 +108,8 @@ export async function removeSubscriberAction(
     );
 
     revalidatePath(`/radars/${number}`);
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return actionError(error);
@@ -134,6 +144,7 @@ export async function setSubscriptionMutedAction(
       data: { muted },
     });
 
+    // Muting notifies nobody, so there is nothing to push or send.
     revalidatePath(`/radars/${number}`);
     return { ok: true };
   } catch (error) {

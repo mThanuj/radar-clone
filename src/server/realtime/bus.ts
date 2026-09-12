@@ -1,0 +1,125 @@
+import "server-only";
+
+/**
+ * Realtime bus.
+ *
+ * Two methods, so the transport is swappable: if the SSE relay's cost on
+ * serverless becomes annoying, Postgres LISTEN/NOTIFY (verified working on this
+ * Neon instance) can replace Upstash by rewriting this file alone.
+ *
+ * Implemented against Upstash's REST API rather than its SDK — publish is one
+ * POST and subscribe is one streaming GET, which is less surface than a client
+ * library and one fewer dependency.
+ *
+ * Everything degrades: with no Upstash configured, publish is a no-op and the
+ * SSE route declines, so the browser falls back to polling.
+ */
+export type RealtimeEvent =
+  | {
+      type: "notification";
+      unreadCount: number;
+      notification: {
+        id: string;
+        reason: string;
+        radarNumber: number;
+        radarTitle: string;
+      };
+    }
+  | { type: "ping" };
+
+const restUrl = () => process.env.UPSTASH_REDIS_REST_URL;
+const restToken = () => process.env.UPSTASH_REDIS_REST_TOKEN;
+
+export function isRealtimeEnabled(): boolean {
+  return Boolean(restUrl() && restToken());
+}
+
+/** One channel per user; the SSE route is what enforces you only get your own. */
+export const channelFor = (userId: string) => `radar:user:${userId}`;
+
+/**
+ * Publish must never break the thing that triggered it — a realtime blip is
+ * not a reason to fail a save, and the inbox row is already committed.
+ */
+export async function publish(
+  userId: string,
+  event: RealtimeEvent,
+): Promise<void> {
+  if (!isRealtimeEnabled()) return;
+
+  try {
+    await fetch(restUrl()!, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${restToken()}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(["PUBLISH", channelFor(userId), JSON.stringify(event)]),
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("realtime publish failed", error);
+  }
+}
+
+export async function publishMany(
+  userIds: string[],
+  build: (userId: string) => Promise<RealtimeEvent> | RealtimeEvent,
+): Promise<void> {
+  if (!isRealtimeEnabled() || userIds.length === 0) return;
+  await Promise.all(
+    userIds.map(async (userId) => publish(userId, await build(userId))),
+  );
+}
+
+/**
+ * Open Upstash's streaming subscribe and yield each message. The caller owns
+ * the AbortSignal, so closing the browser tab tears the upstream read down too.
+ */
+export async function* subscribe(
+  userId: string,
+  signal: AbortSignal,
+): AsyncGenerator<RealtimeEvent> {
+  if (!isRealtimeEnabled()) return;
+
+  const response = await fetch(
+    `${restUrl()}/subscribe/${encodeURIComponent(channelFor(userId))}`,
+    {
+      headers: {
+        authorization: `Bearer ${restToken()}`,
+        accept: "text/event-stream",
+      },
+      signal,
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok || !response.body) return;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (!signal.aborted) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      // Upstash frames as: message,<channel>,<payload>
+      const raw = line.slice(5).trim();
+      const payload = raw.startsWith("message,")
+        ? raw.slice(raw.indexOf(",", 8) + 1)
+        : raw;
+      try {
+        yield JSON.parse(payload) as RealtimeEvent;
+      } catch {
+        // A frame we don't understand is not worth killing the stream over.
+      }
+    }
+  }
+}

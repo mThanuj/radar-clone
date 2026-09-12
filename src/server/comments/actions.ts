@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { extractMentions, stripMarkdown } from "@/lib/markdown";
-import { withAudit } from "@/server/context";
+import { withAuditResult } from "@/server/context";
 import { recordActivity } from "@/server/activity/record";
+import { scheduleEmailDispatch } from "@/server/email/outbox";
 import { requireUser } from "@/server/guards";
+import { schedulePush } from "@/server/realtime/notify";
 import type { Tx } from "@/server/tx";
 import type { ActionResult } from "@/server/action-result";
 
@@ -24,7 +26,7 @@ export async function addCommentAction(
     const user = await requireUser();
     const { radarId, number, body, parentId } = addSchema.parse(input);
 
-    await withAudit(user.id, () =>
+    const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
         const handles = extractMentions(body);
         const mentioned = handles.length
@@ -62,6 +64,7 @@ export async function addCommentAction(
           actorId: user.id,
           kind: "COMMENT_ADDED",
           commentId: comment.id,
+          commentExcerpt: body.slice(0, 400),
           direct: mentioned.map((m) => ({
             userId: m.id,
             reason: "MENTIONED" as const,
@@ -72,6 +75,8 @@ export async function addCommentAction(
 
     revalidatePath(`/radars/${number}`);
     revalidatePath("/timeline");
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return {
@@ -103,7 +108,7 @@ export async function editCommentAction(
       return { ok: false, error: "You can only edit your own comments." };
     }
 
-    await withAudit(user.id, () =>
+    const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
         await tx.comment.update({
           where: { id: commentId },
@@ -113,12 +118,14 @@ export async function editCommentAction(
           radarId: existing.radarId,
           actorId: user.id,
           kind: "COMMENT_EDITED",
-          notify: false,
+          commentExcerpt: body.slice(0, 400),
         });
       }),
     );
 
     revalidatePath(`/radars/${number}`);
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return {
@@ -150,7 +157,7 @@ export async function deleteCommentAction(
     }
 
     // Soft delete: the activity trail has to survive.
-    await withAudit(user.id, () =>
+    const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
         await tx.comment.update({
           where: { id: commentId },
@@ -166,6 +173,8 @@ export async function deleteCommentAction(
     );
 
     revalidatePath(`/radars/${number}`);
+    schedulePush(recipients);
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return {

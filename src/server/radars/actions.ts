@@ -8,6 +8,8 @@ import {
   RadarSubstate,
   Reproducibility,
 } from "@/generated/prisma/enums";
+import { scheduleEmailDispatch } from "@/server/email/outbox";
+import { schedulePush } from "@/server/realtime/notify";
 import { actionError as fail, type ActionResult } from "@/server/action-result";
 import { requireUser } from "@/server/guards";
 import {
@@ -59,8 +61,10 @@ export async function createRadarAction(
     const user = await requireUser();
     const parsed = createSchema.parse(input);
     const radar = await createRadar({ actorId: user.id, input: parsed });
+    schedulePush(radar.recipients);
     revalidatePath("/radars");
     revalidatePath("/timeline");
+    scheduleEmailDispatch();
     return { ok: true, data: { number: radar.number } };
   } catch (error) {
     return fail(error);
@@ -101,11 +105,19 @@ export async function updateRadarAction(
     const user = await requireUser();
     const { radarId, number, expectedVersion, patch, note } =
       updateSchema.parse(input);
-    await updateRadar({ radarId, actorId: user.id, expectedVersion, patch, note });
+    const updated = await updateRadar({
+      radarId,
+      actorId: user.id,
+      expectedVersion,
+      patch,
+      note,
+    });
+    schedulePush(updated.recipients);
     revalidatePath(`/radars/${number}`);
     revalidatePath("/radars");
     revalidatePath("/board");
     revalidatePath("/timeline");
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return fail(error);
@@ -126,11 +138,13 @@ export async function closeAsDuplicateAction(
   try {
     const user = await requireUser();
     const parsed = duplicateSchema.parse(input);
-    await closeAsDuplicate({ ...parsed, actorId: user.id });
+    const closed = await closeAsDuplicate({ ...parsed, actorId: user.id });
+    schedulePush(closed.recipients);
     revalidatePath(`/radars/${parsed.number}`);
     revalidatePath(`/radars/${parsed.duplicateOfNumber}`);
     revalidatePath("/radars");
     revalidatePath("/timeline");
+    scheduleEmailDispatch();
     return { ok: true };
   } catch (error) {
     return fail(error);
@@ -148,10 +162,16 @@ export async function bulkUpdateAction(
   try {
     const user = await requireUser();
     const { radarIds, patch } = bulkSchema.parse(input);
-    const count = await bulkUpdate({ radarIds, actorId: user.id, patch });
+    const { count, recipients } = await bulkUpdate({
+      radarIds,
+      actorId: user.id,
+      patch,
+    });
+    schedulePush(recipients);
     revalidatePath("/radars");
     revalidatePath("/board");
     revalidatePath("/timeline");
+    scheduleEmailDispatch();
     return { ok: true, data: { count } };
   } catch (error) {
     return fail(error);

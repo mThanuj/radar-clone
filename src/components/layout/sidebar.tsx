@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Boxes,
-  Inbox,
   LayoutGrid,
   ListFilter,
   Plus,
@@ -9,11 +8,12 @@ import {
   Radar as RadarIcon,
   Clock,
 } from "lucide-react";
+import { InboxNavLink } from "@/components/layout/inbox-nav-link";
 import { NavLink, QueueLink } from "@/components/layout/nav-link";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { SearchButton } from "@/components/layout/search-button";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
-import { getUnreadCount } from "@/server/notifications/queries";
 import {
   countForSavedQuery,
   getSavedQueries,
@@ -21,10 +21,7 @@ import {
 import type { CurrentUser } from "@/server/guards";
 
 export async function Sidebar({ user }: { user: CurrentUser }) {
-  const [queries, unread] = await Promise.all([
-    getSavedQueries(user.id),
-    getUnreadCount(user.id),
-  ]);
+  const queries = await getSavedQueries(user.id);
 
   const pinned = queries.filter((q) => q.isPinned);
   const counts = await Promise.all(
@@ -50,10 +47,11 @@ export async function Sidebar({ user }: { user: CurrentUser }) {
           <Plus /> New radar
         </Button>
         <SearchButton />
+        <NotificationBell />
       </div>
 
       <nav className="flex flex-col gap-0.5 px-1">
-        <NavLink href="/inbox" icon={<Inbox />} label="Inbox" badge={unread} />
+        <InboxNavLink />
         <NavLink href="/radars" icon={<ListFilter />} label="Radars" exact />
         <NavLink href="/board" icon={<LayoutGrid />} label="Board" />
         <NavLink href="/timeline" icon={<Clock />} label="Timeline" />

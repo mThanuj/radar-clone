@@ -6,7 +6,7 @@ import { useTransition } from "react";
 import { CheckCheck, Circle } from "lucide-react";
 import { cn } from "cn";
 import type { NotificationReason, RadarState, RadarSubstate } from "@/generated/prisma/enums";
-import { NOTIFICATION_REASON_LABEL } from "@/lib/radar/taxonomy";
+import { REASONS } from "@/lib/notifications/catalog";
 import { relativeTime } from "@/lib/radar/format";
 import {
   markAllReadAction,
@@ -90,7 +90,7 @@ export function InboxList({ items }: { items: Item[] }) {
               </button>
 
               <span className="text-muted-foreground w-32 shrink-0 text-xs">
-                {NOTIFICATION_REASON_LABEL[item.reason]}
+                {REASONS[item.reason].label}
               </span>
 
               <Link

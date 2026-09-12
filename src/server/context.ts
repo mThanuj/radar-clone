@@ -12,16 +12,46 @@ export type AuditContext = {
   actorId: string | null;
   /** Set by updateRadar() etc. so the guard knows the write is sanctioned. */
   sanctioned: true;
+  /**
+   * Who got notified during this mutation. Collected here rather than threaded
+   * through every return type, so the caller can push to them after commit
+   * without each mutation having to carry the list back by hand.
+   */
+  recipients: Set<string>;
 };
 
 const auditStorage = new AsyncLocalStorage<AuditContext>();
 
-/** Wrap a sanctioned mutation. Only src/server/**\/mutations.ts should call this. */
-export function withAudit<T>(
+/**
+ * Wrap a sanctioned mutation and report who it notified.
+ * Only src/server/**\/mutations.ts and action files should call this.
+ */
+export async function withAuditResult<T>(
+  actorId: string | null,
+  fn: () => Promise<T>,
+): Promise<{ value: T; recipients: string[] }> {
+  const recipients = new Set<string>();
+  const value = await auditStorage.run(
+    { actorId, sanctioned: true, recipients },
+    fn,
+  );
+  return { value, recipients: [...recipients] };
+}
+
+/** Same, for callers that don't care who was notified. */
+export async function withAudit<T>(
   actorId: string | null,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return auditStorage.run({ actorId, sanctioned: true }, fn);
+  const { value } = await withAuditResult(actorId, fn);
+  return value;
+}
+
+/** Called by recordActivity once fan-out knows who it reached. */
+export function noteRecipients(userIds: string[]): void {
+  const store = auditStorage.getStore();
+  if (!store) return;
+  for (const id of userIds) store.recipients.add(id);
 }
 
 export function currentAudit(): AuditContext | undefined {

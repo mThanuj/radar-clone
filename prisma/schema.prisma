@@ -112,13 +112,48 @@ enum ActivityKind {
   KEYWORD_REMOVED
 }
 
+/// Why a notification exists. Deliberately fine-grained: per-event email
+/// toggles are only possible if the reason is precise, and the inbox reads
+/// better for it. Grouped into categories by src/lib/notifications/catalog.ts.
 enum NotificationReason {
+  // ASSIGNMENT
   ASSIGNED
+  UNASSIGNED
   CC_ADDED
+  WATCHING_ADDED
+  // DISCUSSION
   MENTIONED
   COMMENTED
+  COMMENT_EDITED
+  // WORKFLOW
   STATE_CHANGED
+  RESOLVED
+  REOPENED
+  DUPLICATED
+  // PLANNING
+  PRIORITY_RAISED
+  MILESTONE_CHANGED
+  BLOCKED
+  RELATED
+  COMPONENT_FILED
+  DUE_SOON
+  /// Any audited change not covered by a more specific reason.
   SUBSCRIBED
+}
+
+enum NotificationCategory {
+  ASSIGNMENT
+  DISCUSSION
+  WORKFLOW
+  PLANNING
+}
+
+enum EmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
 }
 
 // ───────────────────────────── identity ─────────────────────────────
@@ -139,6 +174,8 @@ model User {
   jobTitle String?
   isActive Boolean @default(true)
   isAdmin  Boolean @default(false)
+  /// Global mail kill switch. In-app notifications are unaffected.
+  emailEnabled Boolean @default(true)
 
   sessions             Session[]
   accounts             Account[]
@@ -154,6 +191,8 @@ model User {
   keywordsAdded        RadarKeyword[]    @relation("KeywordAddedBy")
   savedQueries         SavedQuery[]
   notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  emails               EmailMessage[]
 
   @@index([name])
   @@map("user")
@@ -513,8 +552,50 @@ model Notification {
   readAt      DateTime?
   createdAt   DateTime           @default(now())
 
-  recipient User  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  radar     Radar @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  recipient User          @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  radar     Radar         @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  email     EmailMessage?
 
   @@index([recipientId, readAt, createdAt(sort: Desc)])
+}
+
+/// Per-user, per-category channel toggles. A missing row means "use the
+/// catalog default", so adding a category later needs no backfill.
+model NotificationPreference {
+  id       String               @id @default(cuid())
+  userId   String
+  category NotificationCategory
+  inApp    Boolean              @default(true)
+  email    Boolean              @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+}
+
+/// Outbox. Rows are written in the same transaction as the Notification they
+/// belong to, so mail can neither be lost nor sent for a change that rolled
+/// back. The unique notificationId is what makes redelivery safe: the
+/// post-response dispatcher and the cron sweep race to claim the same row and
+/// only one can win.
+model EmailMessage {
+  id             String      @id @default(cuid())
+  recipientId    String
+  notificationId String?     @unique
+  to             String
+  subject        String
+  template       String
+  payload        Json
+  status         EmailStatus @default(PENDING)
+  attempts       Int         @default(0)
+  lastError      String?
+  scheduledFor   DateTime    @default(now())
+  sentAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  recipient    User          @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledFor])
 }

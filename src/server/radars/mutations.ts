@@ -1,6 +1,7 @@
 import "server-only";
 import type {
   Classification,
+  NotificationReason,
   RadarState,
   RadarSubstate,
   Reproducibility,
@@ -11,7 +12,8 @@ import {
   DEFAULT_SUBSTATE,
   resolveSubstate,
 } from "@/lib/radar/state-machine";
-import { withAudit } from "@/server/context";
+import { withAuditResult } from "@/server/context";
+import { radarAudience } from "@/server/notifications/fanout";
 import {
   diffRadar,
   labelChanges,
@@ -264,9 +266,12 @@ export async function updateRadar(args: {
   patch: RadarPatch;
   note?: string;
 }) {
-  return withAudit(args.actorId, () =>
+  // recipients ride along so the action can push to them after commit without
+  // every mutation having to thread the list back by hand.
+  const { value, recipients } = await withAuditResult(args.actorId, () =>
     db.$transaction((tx) => applyUpdate(tx as Tx, args)),
   );
+  return Object.assign(value, { recipients });
 }
 
 export async function bulkUpdate(args: {
@@ -274,7 +279,7 @@ export async function bulkUpdate(args: {
   actorId: string;
   patch: RadarPatch;
 }) {
-  return withAudit(args.actorId, () =>
+  const { value, recipients } = await withAuditResult(args.actorId, () =>
     db.$transaction(async (tx) => {
       for (const radarId of args.radarIds) {
         await applyUpdate(tx as Tx, {
@@ -286,6 +291,7 @@ export async function bulkUpdate(args: {
       return args.radarIds.length;
     }),
   );
+  return { count: value, recipients };
 }
 
 export type CreateRadarInput = {
@@ -313,7 +319,7 @@ export async function createRadar(args: {
   actorId: string;
   input: CreateRadarInput;
 }) {
-  return withAudit(args.actorId, () =>
+  const { value, recipients } = await withAuditResult(args.actorId, () =>
     db.$transaction(async (tx) => {
       const component = await tx.component.findUnique({
         where: { id: args.input.componentId },
@@ -370,18 +376,32 @@ export async function createRadar(args: {
         skipDuplicates: true,
       });
 
+      // Whoever owns the component wants to know something landed in it,
+      // unless they filed it or it was already assigned to them.
+      const direct: { userId: string; reason: NotificationReason }[] = [];
+      if (assigneeId) direct.push({ userId: assigneeId, reason: "ASSIGNED" });
+      if (
+        component.defaultAssigneeId &&
+        component.defaultAssigneeId !== assigneeId &&
+        component.defaultAssigneeId !== args.actorId
+      ) {
+        direct.push({
+          userId: component.defaultAssigneeId,
+          reason: "COMPONENT_FILED",
+        });
+      }
+
       await recordActivity(tx as Tx, {
         radarId: radar.id,
         actorId: args.actorId,
         kind: "RADAR_CREATED",
-        direct: assigneeId
-          ? [{ userId: assigneeId, reason: "ASSIGNED" as const }]
-          : undefined,
+        direct,
       });
 
       return radar;
     }),
   );
+  return Object.assign(value, { recipients });
 }
 
 /**
@@ -396,7 +416,7 @@ export async function closeAsDuplicate(args: {
   expectedVersion?: number;
   note?: string;
 }) {
-  return withAudit(args.actorId, () =>
+  const { value, recipients } = await withAuditResult(args.actorId, () =>
     db.$transaction(async (tx) => {
       const canonical = await tx.radar.findUnique({
         where: { number: args.duplicateOfNumber },
@@ -424,7 +444,7 @@ export async function closeAsDuplicate(args: {
         },
       });
 
-      return applyUpdate(tx as Tx, {
+      const result = await applyUpdate(tx as Tx, {
         radarId: args.radarId,
         actorId: args.actorId,
         expectedVersion: args.expectedVersion,
@@ -435,6 +455,34 @@ export async function closeAsDuplicate(args: {
           duplicateOfId: canonical.id,
         },
       });
+
+      // The canonical radar gained a duplicate; its followers care, and the
+      // diff above only describes the radar being closed.
+      const duplicate = await tx.radar.findUniqueOrThrow({
+        where: { id: args.radarId },
+        select: { number: true, title: true },
+      });
+      const audience = await radarAudience(tx as Tx, canonical.id);
+
+      await recordActivity(tx as Tx, {
+        radarId: canonical.id,
+        actorId: args.actorId,
+        kind: "FIELDS_CHANGED",
+        changes: [
+          {
+            field: "duplicateOf",
+            toValue: args.radarId,
+            toLabel: `${duplicate.number} — ${duplicate.title}`,
+          },
+        ],
+        direct: audience.map((userId) => ({
+          userId,
+          reason: "DUPLICATED" as const,
+        })),
+      });
+
+      return result;
     }),
   );
+  return Object.assign(value, { recipients });
 }

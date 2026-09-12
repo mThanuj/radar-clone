@@ -2,7 +2,6 @@ import type {
   ActivityKind,
   Classification,
   MilestoneStatus,
-  NotificationReason,
   RadarState,
   RadarSubstate,
   Reproducibility,
@@ -180,11 +179,3 @@ export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   KEYWORD_REMOVED: "changed keywords",
 };
 
-export const NOTIFICATION_REASON_LABEL: Record<NotificationReason, string> = {
-  ASSIGNED: "Assigned to you",
-  CC_ADDED: "You were CC'd",
-  MENTIONED: "You were mentioned",
-  COMMENTED: "New comment",
-  STATE_CHANGED: "State changed",
-  SUBSCRIBED: "Radar you follow",
-};
