@@ -22,7 +22,8 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:all": "vitest run",
-    "build:check": "next build --webpack"
+    "build:check": "next build --webpack",
+    "lockfile:normalize": "node scripts/normalize-lockfile.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

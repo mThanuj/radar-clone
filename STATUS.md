@@ -80,3 +80,22 @@ memory note `radar-clone-sandbox-constraints`. Short version: no port binding
 (you run `npm run dev`), allowlist-only proxy on 443, so migrations go through
 `scripts/migrate.mjs` over Neon's WebSocket driver, and TS scripts run as
 `node --import tsx/esm file.mts` rather than via the tsx CLI.
+
+### After every `npm install`, normalize the lockfile
+
+```bash
+npm run lockfile:normalize
+```
+
+Installing from inside the corp network records internal Artifactory mirror URLs
+(`npm.apple.com`, `artifacts.apple.com`) in `package-lock.json`. GitHub Actions
+runners can't resolve those hosts, so `npm ci` fails with `ENOTFOUND` — and there
+is no reason to publish an internal hostname in a public repo. The script
+rewrites the `resolved` URLs to `registry.npmjs.org`; the mirrors serve identical
+tarballs under identical paths, so `integrity` hashes are untouched and still
+verify.
+
+Consequence: `npm ci` no longer works from inside the sandbox, because
+`registry.npmjs.org` is not allowlisted here. Use `npm install` locally (it
+follows your configured registry), then re-run the normalize script before
+committing.
