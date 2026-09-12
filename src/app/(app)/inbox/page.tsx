@@ -10,7 +10,7 @@ export default async function InboxPage() {
   const items = await getInbox({ userId: user.id });
 
   return (
-    <div className="mx-auto max-w-4xl p-5">
+    <div className="mx-auto max-w-4xl p-4 sm:p-5">
       <InboxList items={items} />
     </div>
   );

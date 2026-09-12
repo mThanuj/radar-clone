@@ -19,7 +19,7 @@ export default async function MilestonesPage() {
   );
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4 p-5">
+    <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4 sm:p-5">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-semibold">Milestones</h1>
         <Button

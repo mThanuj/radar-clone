@@ -49,7 +49,7 @@ export default async function MilestonePage({
   const byState = new Map(progress.byState.map((s) => [s.state, s.count]));
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-5">
       <header className="flex flex-col gap-1">
         <Link
           href="/milestones"

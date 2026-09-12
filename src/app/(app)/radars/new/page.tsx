@@ -20,7 +20,7 @@ export default async function NewRadarPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto max-w-3xl p-4 sm:p-6">
       <h1 className="mb-1 text-base font-semibold">File a radar</h1>
       <p className="text-muted-foreground mb-6 text-sm">
         It opens in Analyze / Open and lands on whoever owns the component

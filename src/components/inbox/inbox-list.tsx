@@ -89,7 +89,7 @@ export function InboxList({ items }: { items: Item[] }) {
                 />
               </button>
 
-              <span className="text-muted-foreground w-32 shrink-0 text-xs">
+              <span className="text-muted-foreground hidden w-32 shrink-0 text-xs sm:block">
                 {REASONS[item.reason].label}
               </span>
 
@@ -103,10 +103,12 @@ export function InboxList({ items }: { items: Item[] }) {
                 {item.radar.title}
               </Link>
 
-              <PriorityBadge priority={item.radar.priority} />
-              <StateBadge state={item.radar.state} />
+              <span className="hidden sm:contents">
+                <PriorityBadge priority={item.radar.priority} />
+                <StateBadge state={item.radar.state} />
+              </span>
 
-              <time className="text-muted-foreground w-24 shrink-0 text-right text-xs">
+              <time className="text-muted-foreground w-16 shrink-0 text-right text-xs sm:w-24">
                 {relativeTime(item.createdAt)}
               </time>
             </li>

@@ -22,23 +22,30 @@ import {
 import type { CurrentUser } from "@/server/guards";
 
 /**
- * The sidebar renders immediately; only the queue counts stream in.
+ * The navigation itself, rendered identically in the desktop rail and the
+ * mobile drawer. Kept separate from the <aside> so the two never drift.
  *
- * Those counts were the single most expensive thing on every page — one
- * COUNT(*) over Radar per pinned queue, measured at ~440ms for four queues —
- * and because they live in the shared layout, every navigation waited on them
- * before showing anything at all. They're now behind a Suspense boundary, so
- * the nav paints straight away and the numbers fill in a moment later.
+ * Queue counts stream: they were the single most expensive thing on every
+ * page — one COUNT(*) over Radar per pinned queue — and because this lives in
+ * the shared layout, every navigation waited on them before painting.
  */
-export function Sidebar({ user }: { user: CurrentUser }) {
+export function SidebarContent({
+  user,
+  showBrand = true,
+}: {
+  user: CurrentUser;
+  showBrand?: boolean;
+}) {
   return (
-    <aside className="bg-sidebar flex w-60 shrink-0 flex-col gap-3 border-r px-2 py-3">
-      <div className="flex items-center gap-2 px-2">
-        <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-          <RadarIcon className="size-3.5" />
+    <>
+      {showBrand && (
+        <div className="flex items-center gap-2 px-2">
+          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+            <RadarIcon className="size-3.5" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight">Radar</span>
         </div>
-        <span className="text-sm font-semibold tracking-tight">Radar</span>
-      </div>
+      )}
 
       <div className="flex gap-1.5 px-1">
         <Button
@@ -69,6 +76,15 @@ export function Sidebar({ user }: { user: CurrentUser }) {
       <div className="mt-auto px-1">
         <UserMenu user={user} />
       </div>
+    </>
+  );
+}
+
+/** Desktop rail. Hidden below md, where the drawer takes over. */
+export function Sidebar({ user }: { user: CurrentUser }) {
+  return (
+    <aside className="bg-sidebar hidden w-60 shrink-0 flex-col gap-3 border-r px-2 py-3 md:flex">
+      <SidebarContent user={user} />
     </aside>
   );
 }

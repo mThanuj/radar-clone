@@ -20,7 +20,7 @@ export default async function RadarsPage({
   // The heading and view controls need no data, so they paint immediately
   // while the query runs. Without this the whole page waited on the results.
   return (
-    <div className="flex flex-col gap-3 p-5">
+    <div className="flex flex-col gap-3 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-base font-semibold">Radars</h1>
         <ViewOptions query={query} />

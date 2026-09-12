@@ -3,10 +3,10 @@ import { Bell, Boxes, Tag, Target, User } from "lucide-react";
 
 export default function SettingsLayout({ children }: LayoutProps<"/settings">) {
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-5">
       <h1 className="text-base font-semibold">Settings</h1>
 
-      <nav className="flex gap-1 border-b pb-2">
+      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b px-1 pb-2">
         <NavLink href="/settings/profile" icon={<User />} label="Profile" />
         <NavLink href="/settings/notifications" icon={<Bell />} label="Notifications" />
         <NavLink href="/settings/components" icon={<Boxes />} label="Components" />

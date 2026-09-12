@@ -124,7 +124,7 @@ export function TimelineList({
 
             <Link
               href={`/radars/${event.radar.number}`}
-              className="text-muted-foreground w-24 shrink-0 pt-0.5 font-mono text-xs tabular-nums hover:underline"
+              className="text-muted-foreground hidden w-24 shrink-0 pt-0.5 font-mono text-xs tabular-nums hover:underline sm:block"
             >
               {event.radar.number}
             </Link>
@@ -141,7 +141,7 @@ export function TimelineList({
 
             <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
               {event.actor && <Avatar person={event.actor} size={18} />}
-              <span className="text-muted-foreground text-xs">
+              <span className="text-muted-foreground hidden text-xs sm:inline">
                 {event.actor?.name ?? "System"}
               </span>
             </span>

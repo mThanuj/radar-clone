@@ -73,9 +73,9 @@ export default async function RadarDetailPage({
   const resolution = resolutionOf(radar);
 
   return (
-    <div className="mx-auto flex max-w-[80rem] flex-col gap-4 p-5">
+    <div className="mx-auto flex max-w-[80rem] flex-col gap-4 p-4 sm:p-5">
       <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CopyRdarButton number={radar.number} />
           <StateBadge state={radar.state} substate={radar.substate} />
           {resolution && (
@@ -83,7 +83,7 @@ export default async function RadarDetailPage({
               Resolution: {SUBSTATE_LABEL[resolution]}
             </span>
           )}
-          <span className="ml-auto flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 sm:ml-auto">
             <CopyTextButton text={renderCanonicalText({ ...radar, ...values })} />
             <CloseDuplicateDialog
               radarId={radar.id}

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // The `geist` package self-hosts the font files. next/font/google would try
 // to reach fonts.googleapis.com at build time, which the corp proxy blocks.
 import { GeistMono } from "geist/font/mono";
@@ -13,6 +13,18 @@ export const metadata: Metadata = {
     template: "%s · Radar",
   },
   description: "Issue tracking",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Let people zoom. Locking it out is an accessibility problem, and nothing
+  // here depends on the viewport staying put.
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

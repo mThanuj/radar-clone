@@ -19,7 +19,7 @@ export default async function BoardPage({ searchParams }: PageProps<"/board">) {
   ]);
 
   return (
-    <div className="flex flex-col gap-3 p-5">
+    <div className="flex flex-col gap-3 p-4 sm:p-5">
       <h1 className="text-base font-semibold">Board</h1>
       <FilterBar query={query} errors={errors} sources={sources} />
       <BoardView columns={columns} />

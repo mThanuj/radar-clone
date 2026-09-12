@@ -20,7 +20,7 @@ export default async function TimelinePage({
   ]);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-3 p-5">
+    <div className="mx-auto flex max-w-4xl flex-col gap-3 p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <h1 className="text-base font-semibold">Timeline</h1>

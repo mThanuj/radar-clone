@@ -177,7 +177,39 @@ export function ResultTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border">
+      {/* Phones get cards. A ten-column table behind a horizontal scrollbar is
+          technically readable and practically useless on a 390px screen. */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {rows.map((row) => (
+          <li key={row.id}>
+            <Link
+              href={`/radars/${row.number}`}
+              className="hover:bg-muted/40 block rounded-lg border p-3"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                  {row.number}
+                </span>
+                <PriorityBadge priority={row.priority} />
+                <StateBadge state={row.state} />
+              </div>
+
+              <p className="mt-1.5 line-clamp-2 text-sm font-medium">
+                {row.title}
+              </p>
+
+              <div className="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
+                <UserChip person={row.assignee} className="text-xs" />
+                <span className="ml-auto shrink-0 tabular-nums">
+                  {compactDate(row.lastActivityAt)}
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground border-b text-xs">
             <tr>

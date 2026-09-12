@@ -48,7 +48,7 @@ export function BulkEditBar({
   }
 
   return (
-    <div className="bg-popover fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border p-1.5 pl-3 shadow-lg">
+    <div className="bg-popover fixed inset-x-3 bottom-4 z-40 flex flex-wrap items-center justify-center gap-2 rounded-xl border p-2 shadow-lg sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:flex-nowrap sm:p-1.5 sm:pl-3">
       <span className="text-sm font-medium">
         {ids.length} selected
       </span>
