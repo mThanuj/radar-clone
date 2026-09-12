@@ -27,10 +27,56 @@ async function deriveHandle(email: string): Promise<string> {
   }
 }
 
+/**
+ * Where this deployment thinks it lives.
+ *
+ * better-auth rejects any request whose Origin doesn't match baseURL or a
+ * trusted origin ("Invalid origin"). On Vercel that bites twice: the stable
+ * production domain differs from the per-deployment URL, and every preview
+ * gets its own hostname. So derive it from Vercel's system env vars instead of
+ * pinning one URL by hand.
+ *
+ * BETTER_AUTH_URL still wins when set, which is what local dev uses.
+ */
+function resolveBaseURL(): string {
+  // Trailing slashes are the classic footgun here: the origin check compares
+  // the configured value against the request's origin, which never has one, so
+  // "https://app.example.com/" silently matches nothing.
+  const trim = (url: string) => url.replace(/\/+$/, "");
+
+  if (process.env.BETTER_AUTH_URL) return trim(process.env.BETTER_AUTH_URL);
+
+  const host =
+    process.env.VERCEL_ENV === "production"
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : process.env.VERCEL_URL;
+
+  return host ? `https://${trim(host)}` : "http://localhost:3000";
+}
+
+const baseURL = resolveBaseURL();
+
+/** Every host this deployment can legitimately be reached on. */
+const trustedOrigins = [
+  ...new Set(
+    [
+      baseURL,
+      ...[
+        process.env.VERCEL_URL,
+        process.env.VERCEL_BRANCH_URL,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL,
+      ]
+        .filter((host): host is string => Boolean(host))
+        .map((host) => `https://${host}`),
+    ].filter(Boolean),
+  ),
+];
+
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL,
+  trustedOrigins,
   emailAndPassword: {
     enabled: true,
     // No mail service is wired up, so verification would lock everyone out.
