@@ -7,11 +7,21 @@ import { dispatchPending } from "@/server/email/outbox";
 import type { Tx } from "@/server/tx";
 
 /**
- * Daily: warn assignees about radars due within 24 hours.
+ * The one scheduled job.
  *
- * Guards against repeats by checking for a DUE_SOON notification already
- * raised for that radar in the last day — cron can fire more than once, and
- * nobody wants the same nudge twice.
+ * Vercel's Hobby plan allows cron only once per day, so both scheduled
+ * concerns live here: raise DUE_SOON notifications, then sweep the email
+ * outbox.
+ *
+ * Losing the five-minute email sweep costs less than it sounds. Every
+ * mutation already calls scheduleEmailDispatch(), and that claims the *whole*
+ * pending backlog rather than just the rows it created — so a failed message
+ * is retried the next time anyone touches a radar. This job is the backstop
+ * for stretches where nobody uses the app at all.
+ *
+ * Repeats are guarded by checking for a DUE_SOON notification already raised
+ * for that radar in the last day: cron can fire more than once, and nobody
+ * wants the same nudge twice.
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

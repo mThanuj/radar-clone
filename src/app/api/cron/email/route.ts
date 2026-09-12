@@ -3,9 +3,13 @@ import { isCronAuthorized } from "@/server/cron-auth";
 import { dispatchPending } from "@/server/email/outbox";
 
 /**
- * Retry sweep. The request path already dispatches via after(), so this only
- * picks up mail that failed or was left behind when a function was torn down
- * mid-send.
+ * Manual email sweep.
+ *
+ * Not on a schedule: Vercel Hobby caps cron at once per day, so the daily job
+ * (/api/cron/daily) does this at the end of its run. Kept as an endpoint so a
+ * stuck outbox can be drained on demand without waiting for tomorrow:
+ *
+ *   curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/email
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

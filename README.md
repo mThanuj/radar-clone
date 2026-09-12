@@ -101,9 +101,13 @@ with `@mentions` overriding the last two.
 
 Email goes through an outbox written in the same transaction as the
 notification, so mail can neither be lost nor sent for a change that rolled
-back. Sending happens in `after()` so it never delays a save; a cron sweep
-retries failures with backoff. Real-time uses Upstash pub/sub behind an SSE
-relay, falling back to 20-second polling after repeated stream failures.
+back. Sending happens in `after()` so it never delays a save, and because
+that sweep claims the whole pending backlog rather than only the rows it just
+created, a failed message is retried the next time anyone touches a radar.
+`/api/cron/daily` is the backstop for stretches when nobody uses the app —
+one job, because Vercel Hobby allows cron only once per day. Real-time uses
+Upstash pub/sub behind an SSE relay, falling back to 20-second polling after
+repeated stream failures.
 
 ## Scripts
 
