@@ -23,9 +23,26 @@ const schema = z.object({
 
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_USER: z.string().min(1),
-  SMTP_PASS: z.string().min(1),
-  SMTP_FROM: z.string().min(1),
+  SMTP_USER: z
+    .string()
+    .min(1)
+    .refine((value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value), {
+      message: 'must be the full address you authenticate as, e.g. "you@gmail.com"',
+    }),
+  // Google shows app passwords in four spaced groups, and pasting them
+  // verbatim fails authentication in a way that looks like a wrong password.
+  // Strip whitespace rather than making everyone learn that.
+  SMTP_PASS: z
+    .string()
+    .min(1)
+    .transform((value) => value.replace(/\s+/g, "")),
+  SMTP_FROM: z
+    .string()
+    .min(1)
+    .refine((value) => /[^@<>\s]+@[^@<>\s]+\.[^@<>\s]+/.test(value), {
+      message:
+        'must contain an address, e.g. "Radar <you@gmail.com>" — "Radar <>" is not enough',
+    }),
 
   UPSTASH_REDIS_REST_URL: z.string().min(1),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
@@ -83,7 +100,32 @@ let cached: Env | null = null;
  */
 export function validateEnv(): Env {
   cached ??= load();
+  warnAboutSenderMismatch(cached);
   return cached;
+}
+
+let warned = false;
+
+/**
+ * Gmail refuses to send as an address you haven't authenticated as, unless it
+ * is a verified alias — it either rewrites the From header or rejects with
+ * 5.5.1. A warning rather than an error, because other providers (SES, a corp
+ * relay) legitimately allow a different sender.
+ */
+function warnAboutSenderMismatch(env: Env): void {
+  if (warned || env.EMAIL_TRANSPORT !== "smtp") return;
+  if (!/gmail\.com|googlemail\.com/.test(env.SMTP_HOST)) return;
+
+  const from = env.SMTP_FROM.match(/[^@<>\s]+@[^@<>\s]+/)?.[0];
+  if (!from || from.toLowerCase() === env.SMTP_USER.toLowerCase()) return;
+
+  warned = true;
+  console.warn(
+    `\n⚠ SMTP_FROM is <${from}> but you authenticate as ${env.SMTP_USER}.\n` +
+      `  Gmail will rewrite or reject that unless <${from}> is a verified alias\n` +
+      `  under Gmail Settings → Accounts → "Send mail as".\n` +
+      `  If it isn't, use: SMTP_FROM="Radar <${env.SMTP_USER}>"\n`,
+  );
 }
 
 /**
