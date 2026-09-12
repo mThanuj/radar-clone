@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/server/guards";
-import { isRealtimeEnabled, subscribe } from "@/server/realtime/bus";
+import { subscribe } from "@/server/realtime/bus";
 
 /**
  * SSE relay.
@@ -9,9 +9,6 @@ import { isRealtimeEnabled, subscribe } from "@/server/realtime/bus";
  * Authorization happens here, server-side, and the route only ever subscribes
  * to the signed-in user's own channel — which is why no Upstash credential
  * ever reaches the browser.
- *
- * Returns 501 when realtime isn't configured so the client stops retrying and
- * switches to polling instead of hammering a dead endpoint.
  */
 export const dynamic = "force-dynamic";
 // Vercel caps function duration; EventSource reconnects on its own, so a
@@ -24,10 +21,6 @@ const HEARTBEAT_MS = 25 * 1000;
 
 export async function GET(request: Request) {
   const user = await requireUser();
-
-  if (!isRealtimeEnabled()) {
-    return new Response("realtime not configured", { status: 501 });
-  }
 
   const encoder = new TextEncoder();
   const controller = new AbortController();

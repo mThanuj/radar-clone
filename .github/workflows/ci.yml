@@ -9,13 +9,21 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # `prisma generate` reads prisma.config.ts, which requires these to be
-      # resolvable. Nothing here connects to a database: every page is
-      # server-rendered on demand, so the build never queries.
+      # `prisma generate` reads prisma.config.ts, and src/lib/env.ts validates
+      # the rest at import. Nothing here connects to anything: every page is
+      # server-rendered on demand, so the build never queries or sends.
       DATABASE_URL: postgresql://user:pass@localhost:5432/placeholder
       DIRECT_URL: postgresql://user:pass@localhost:5432/placeholder
-      BETTER_AUTH_SECRET: ci-placeholder-secret
+      BETTER_AUTH_SECRET: ci-placeholder-secret-16-chars
       BETTER_AUTH_URL: http://localhost:3000
+      EMAIL_TRANSPORT: json
+      SMTP_HOST: smtp.invalid
+      SMTP_PORT: "587"
+      SMTP_USER: ci@radar.local
+      SMTP_PASS: placeholder
+      SMTP_FROM: Radar CI <ci@radar.local>
+      UPSTASH_REDIS_REST_URL: https://upstash.invalid
+      UPSTASH_REDIS_REST_TOKEN: placeholder
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
@@ -49,8 +57,18 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
       DIRECT_URL: ${{ secrets.TEST_DIRECT_URL }}
-      BETTER_AUTH_SECRET: ci-placeholder-secret
+      BETTER_AUTH_SECRET: ci-placeholder-secret-16-chars
       BETTER_AUTH_URL: http://localhost:3000
+      # Placeholders: the suite forces EMAIL_TRANSPORT=json and never reaches
+      # Upstash, so no real credentials are needed to run integration tests.
+      EMAIL_TRANSPORT: json
+      SMTP_HOST: smtp.invalid
+      SMTP_PORT: "587"
+      SMTP_USER: ci@radar.local
+      SMTP_PASS: placeholder
+      SMTP_FROM: Radar CI <ci@radar.local>
+      UPSTASH_REDIS_REST_URL: https://upstash.invalid
+      UPSTASH_REDIS_REST_TOKEN: placeholder
 
     steps:
       - uses: actions/checkout@v5

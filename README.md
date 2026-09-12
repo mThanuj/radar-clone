@@ -23,6 +23,88 @@ Sign up at `/sign-up`. The six standard queues (My Open Radars, Assigned to Me,
 Originated by Me, Watching, Unassigned, Recently Closed) are created for your
 account the first time the sidebar loads.
 
+## Getting the credentials
+
+All of these are required — the app validates them at startup and refuses to
+boot with a message naming whatever is missing, rather than failing later when
+the first email tries to send.
+
+### Neon (database)
+
+1. [console.neon.tech](https://console.neon.tech) → **New Project**.
+2. **Connection Details** → copy the **pooled** string (host contains
+   `-pooler`) into `DATABASE_URL`.
+3. Toggle off "Pooled connection" and copy the **direct** string into
+   `DIRECT_URL`. Migrations need this one; pgbouncer can't run DDL.
+
+### Gmail (email)
+
+Gmail rejects your normal password over SMTP, so you need an app password —
+which requires 2-Step Verification to be on.
+
+1. [myaccount.google.com/security](https://myaccount.google.com/security) →
+   turn on **2-Step Verification** if it isn't already.
+2. Same page → **App passwords** (or go straight to
+   [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)).
+3. App name: `Radar` → **Create**. Copy the 16-character password — it's shown
+   once.
+4. Fill in:
+   ```
+   SMTP_HOST="smtp.gmail.com"
+   SMTP_PORT="587"
+   SMTP_USER="you@gmail.com"
+   SMTP_PASS="the 16 characters, spaces removed"
+   SMTP_FROM="Radar <you@gmail.com>"
+   ```
+
+Gmail sends about 500 messages a day and rewrites the From header to your own
+address, which is fine for a personal tracker. Check it works from
+**Settings → Notifications → Send a test email**; that goes straight through
+SMTP rather than the queue, so a bad password surfaces immediately.
+
+Don't want real mail while developing? Set `EMAIL_TRANSPORT="json"` and every
+message is rendered to the server console instead.
+
+### Upstash (realtime)
+
+1. [console.upstash.com](https://console.upstash.com) → **Create Database** →
+   Redis. Pick the region closest to your Vercel region; the free tier is
+   ample (10k commands/day).
+2. On the database page, scroll to **REST API** and click **.env**.
+3. Copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` across.
+
+Use the read-write token. It stays server-side — the browser talks to our own
+SSE endpoint, never to Upstash.
+
+### Cron secret
+
+Any random string; it's what Vercel Cron authenticates with.
+
+```bash
+openssl rand -hex 24
+```
+
+Required in production. The cron endpoints reject every request until it's set,
+so an unconfigured deployment has closed endpoints rather than open ones.
+
+## Notifications
+
+Twenty events across four categories — assignment, discussion, workflow,
+planning — each deliverable in-app, by email, or both, per user. The catalog in
+`src/lib/notifications/catalog.ts` is the single definition: the settings page
+renders from it and the server filters on it, so a toggle can't mean two
+different things.
+
+Suppression is checked in a fixed order, and that order is a test rather than a
+convention: actor → per-radar mute → global email switch → category toggle,
+with `@mentions` overriding the last two.
+
+Email goes through an outbox written in the same transaction as the
+notification, so mail can neither be lost nor sent for a change that rolled
+back. Sending happens in `after()` so it never delays a save; a cron sweep
+retries failures with backoff. Real-time uses Upstash pub/sub behind an SSE
+relay, falling back to 20-second polling after repeated stream failures.
+
 ## Scripts
 
 | Command | Does |

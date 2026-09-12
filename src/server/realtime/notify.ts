@@ -1,7 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { db } from "@/lib/db";
-import { isRealtimeEnabled, publish } from "@/server/realtime/bus";
+import { publish } from "@/server/realtime/bus";
 
 /**
  * Push to each recipient after the response flushes.
@@ -13,7 +13,7 @@ import { isRealtimeEnabled, publish } from "@/server/realtime/bus";
  * Each recipient gets their own unread count, because the badge is per-person.
  */
 export function schedulePush(recipientIds: string[]): void {
-  if (recipientIds.length === 0 || !isRealtimeEnabled()) return;
+  if (recipientIds.length === 0) return;
 
   after(async () => {
     try {

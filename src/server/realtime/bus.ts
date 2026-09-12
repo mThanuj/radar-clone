@@ -1,4 +1,5 @@
 import "server-only";
+import { env } from "@/lib/env";
 
 /**
  * Realtime bus.
@@ -11,8 +12,10 @@ import "server-only";
  * POST and subscribe is one streaming GET, which is less surface than a client
  * library and one fewer dependency.
  *
- * Everything degrades: with no Upstash configured, publish is a no-op and the
- * SSE route declines, so the browser falls back to polling.
+ * Upstash config is required (see src/lib/env.ts), so this never silently
+ * no-ops because of a missing variable. The client still falls back to polling
+ * after repeated stream failures — that covers the broker being *down*, which
+ * is a different problem from it being unconfigured.
  */
 export type RealtimeEvent =
   | {
@@ -27,12 +30,8 @@ export type RealtimeEvent =
     }
   | { type: "ping" };
 
-const restUrl = () => process.env.UPSTASH_REDIS_REST_URL;
-const restToken = () => process.env.UPSTASH_REDIS_REST_TOKEN;
-
-export function isRealtimeEnabled(): boolean {
-  return Boolean(restUrl() && restToken());
-}
+const restUrl = () => env.UPSTASH_REDIS_REST_URL;
+const restToken = () => env.UPSTASH_REDIS_REST_TOKEN;
 
 /** One channel per user; the SSE route is what enforces you only get your own. */
 export const channelFor = (userId: string) => `radar:user:${userId}`;
@@ -45,10 +44,9 @@ export async function publish(
   userId: string,
   event: RealtimeEvent,
 ): Promise<void> {
-  if (!isRealtimeEnabled()) return;
 
   try {
-    await fetch(restUrl()!, {
+    await fetch(restUrl(), {
       method: "POST",
       headers: {
         authorization: `Bearer ${restToken()}`,
@@ -66,7 +64,7 @@ export async function publishMany(
   userIds: string[],
   build: (userId: string) => Promise<RealtimeEvent> | RealtimeEvent,
 ): Promise<void> {
-  if (!isRealtimeEnabled() || userIds.length === 0) return;
+  if (userIds.length === 0) return;
   await Promise.all(
     userIds.map(async (userId) => publish(userId, await build(userId))),
   );
@@ -80,7 +78,6 @@ export async function* subscribe(
   userId: string,
   signal: AbortSignal,
 ): AsyncGenerator<RealtimeEvent> {
-  if (!isRealtimeEnabled()) return;
 
   const response = await fetch(
     `${restUrl()}/subscribe/${encodeURIComponent(channelFor(userId))}`,
