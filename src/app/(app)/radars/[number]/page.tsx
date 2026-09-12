@@ -46,15 +46,23 @@ export default async function RadarDetailPage({
 }: PageProps<"/radars/[number]">) {
   const user = await requireUser();
   const { number } = await params;
+
+  // The four lookups don't depend on the radar, so they start now rather than
+  // after it returns — one round trip instead of two.
+  const peoplePromise = getPeople();
+  const componentsPromise = getComponentTree();
+  const milestonesPromise = getMilestones();
+  const keywordsPromise = getKeywords();
+
   const radar = await getRadarByNumber(Number(number));
   if (!radar) notFound();
 
   const [events, people, components, milestones, keywords] = await Promise.all([
     getFeed(radar.id),
-    getPeople(),
-    getComponentTree(),
-    getMilestones(),
-    getKeywords(),
+    peoplePromise,
+    componentsPromise,
+    milestonesPromise,
+    keywordsPromise,
   ]);
 
   const values = Object.fromEntries(
