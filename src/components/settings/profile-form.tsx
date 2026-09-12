@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateProfileAction } from "@/server/users/actions";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,25 @@ export function ProfileForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  // Controlled rather than defaultValue: saving calls router.refresh(), which
+  // re-renders this with new props while the inputs stay mounted — and
+  // changing the default of an uncontrolled input is undefined behaviour.
+  const [form, setForm] = useState({
+    name: user.name,
+    handle: user.handle,
+    jobTitle: user.jobTitle ?? "",
+  });
+
+  const set = (field: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await updateProfileAction({
-        name: String(form.get("name")),
-        handle: String(form.get("handle")),
-        jobTitle: String(form.get("jobTitle") ?? "") || null,
+        name: form.name,
+        handle: form.handle,
+        jobTitle: form.jobTitle || null,
       });
       if (result.ok) {
         toast.success("Profile updated");
@@ -38,12 +49,17 @@ export function ProfileForm({
     <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={user.name} required />
+        <Input id="name" value={form.name} onChange={set("name")} required />
       </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="handle">Handle</Label>
-        <Input id="handle" name="handle" defaultValue={user.handle} required />
+        <Input
+          id="handle"
+          value={form.handle}
+          onChange={set("handle")}
+          required
+        />
         <p className="text-muted-foreground text-xs">
           Used for @mentions in comments.
         </p>
@@ -53,8 +69,8 @@ export function ProfileForm({
         <Label htmlFor="jobTitle">Title</Label>
         <Input
           id="jobTitle"
-          name="jobTitle"
-          defaultValue={user.jobTitle ?? ""}
+          value={form.jobTitle}
+          onChange={set("jobTitle")}
           placeholder="Software Engineer"
         />
       </div>

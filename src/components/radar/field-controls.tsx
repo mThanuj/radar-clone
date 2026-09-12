@@ -323,22 +323,36 @@ export function DueDateField({
   const { patch, pending } = useRadarPatch(radar);
   const iso = value ? new Date(value).toISOString().slice(0, 10) : "";
 
+  // Controlled, because this input stays mounted across the router.refresh()
+  // that follows a save — an uncontrolled defaultValue would be changing under
+  // React after initialization. Synced during render rather than in an effect,
+  // which is React's documented way to adjust state when a prop changes.
+  const [draft, setDraft] = useState(iso);
+  const [syncedFrom, setSyncedFrom] = useState(iso);
+  if (iso !== syncedFrom) {
+    setSyncedFrom(iso);
+    setDraft(iso);
+  }
+
+  function commit(next: string) {
+    setDraft(next);
+    patch({ dueDate: next ? new Date(next) : null });
+  }
+
   return (
     <div className="flex items-center gap-1">
       <input
         type="date"
-        defaultValue={iso}
+        value={draft}
         disabled={pending}
-        onChange={(event) =>
-          patch({ dueDate: event.target.value ? new Date(event.target.value) : null })
-        }
+        onChange={(event) => commit(event.target.value)}
         className="hover:bg-muted rounded-md px-1.5 py-1 text-sm outline-none"
       />
-      {value && (
+      {draft && (
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={() => patch({ dueDate: null })}
+          onClick={() => commit("")}
           aria-label="Clear due date"
         >
           ×
