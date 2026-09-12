@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Radar
 
-## Getting Started
+A clone of Apple's internal Radar issue tracker — its actual domain model
+(components, classification, state/substate, milestones, typed relationships,
+CC lists) in a Linear-style interface, plus a global activity timeline.
 
-First, run the development server:
+Next.js 16 · React 19 · TypeScript · Tailwind v4 + shadcn (Base UI) ·
+Prisma 7 · Neon Postgres · better-auth
+
+---
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env     # then fill in your Neon URLs and a BETTER_AUTH_SECRET
+npm run db:migrate       # apply migrations
+npm run db:seed          # taxonomy only: 1 component, 1 milestone, 10 keywords
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign up at `/sign-up`. The six standard queues (My Open Radars, Assigned to Me,
+Originated by Me, Watching, Unassigned, Recently Closed) are created for your
+account the first time the sidebar loads.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Does |
+|---|---|
+| `npm run dev` | Dev server on 127.0.0.1:3000 |
+| `npm run build` | `prisma generate && next build` |
+| `npm run build:check` | Webpack build (works where Turbopack can't bind a port) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit tests only — no database needed |
+| `npm run test:integration` | Audit-trail and concurrency tests against the dev database |
+| `npm run test:all` | Both |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run db:status` | Applied / pending migrations |
+| `npm run db:reset` | Drop the schema, re-apply everything, re-seed |
+| `npm run db:seed` | Idempotent taxonomy seed |
+| `npm run db:sql "…"` | Ad-hoc SQL |
 
-## Learn More
+## How it's put together
 
-To learn more about Next.js, take a look at the following resources:
+**`state` + `substate` are the only status columns.** Radar has no resolution
+field — what looks like one is the substate vocabulary of the `CLOSED` state, so
+`Closed / Duplicate` is a single cell in a (state × substate) matrix. That table
+lives in `src/lib/radar/state-machine.ts` and drives the state picker, the close
+dialog, the board's legal drop targets, and server-side validation from one
+definition.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**One audited write path.** Every edit — inline field, form save, board drag,
+bulk edit — goes through `applyUpdate` in `src/server/radars/mutations.ts`,
+inside a transaction: drop no-ops, validate the transition, apply derived
+effects, check the optimistic-concurrency `version`, then write the row and one
+`ActivityEvent` with an N-row `FieldChange` diff. A Prisma extension in
+`src/lib/db.ts` throws on any `radar.update` that didn't declare an actor, and
+blocks hard deletes outright — so the history can't quietly grow holes. The
+integration suite proves it: apply 21 patches, fold every `FieldChange` back
+over the creation snapshot, assert it reproduces the current row.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**One field registry.** `src/lib/search/fields.ts` declares each field once —
+label, kind, operators, options, Prisma `where`, `orderBy`, table column. That
+single entry drives the filter bar, URL parsing and validation, the query, the
+sort, and the result columns. Filters are AND-of-ORs and live entirely in the
+URL, so every list view is shareable and a saved query is just its canonical
+query string.
 
-## Deploy on Vercel
+**Relations are stored once.** Only canonical directions exist as rows
+(`DUPLICATE_OF`, `BLOCKS`, `PARENT_OF`, …); the inverse reading is produced by
+`invertRelation()`. Mirrored rows would double writes and could disagree.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploying
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`vercel.json` runs `prisma generate && prisma migrate deploy && next build`.
+Set `DATABASE_URL` (pooled), `DIRECT_URL` (unpooled), `BETTER_AUTH_SECRET`, and
+`BETTER_AUTH_URL` in the Vercel project.
+
+## Working inside a restricted network
+
+`STATUS.md` documents the constraints this was built under — no port binding, an
+allowlist-only proxy on 443 — and the workarounds that are now load-bearing:
+`scripts/migrate.mjs` applies migrations over Neon's WebSocket driver while
+staying compatible with `prisma migrate deploy`, and the driver is handed an
+HTTPS proxy agent when one is configured.

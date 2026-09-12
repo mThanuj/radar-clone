@@ -1,0 +1,520 @@
+// Radar clone — data model.
+// See the plan: state + substate are the only status columns; there is no
+// resolution field, because a resolution is just a substate of CLOSED.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts (migrations) and in the
+// driver adapter passed to PrismaClient (runtime). Not here.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────── enums ───────────────────────────────
+
+enum RadarState {
+  ANALYZE
+  INTEGRATE
+  VERIFY
+  CLOSED
+}
+
+enum RadarSubstate {
+  // ANALYZE
+  OPEN
+  ANALYZE
+  INVESTIGATE
+  // shared by ANALYZE / INTEGRATE / VERIFY
+  FIX
+  // INTEGRATE
+  INTEGRATE
+  // VERIFY
+  VERIFY
+  // CLOSED — these are what other trackers would call "resolution"
+  SOFTWARE_CHANGED
+  DUPLICATE
+  BEHAVES_CORRECTLY
+  UNABLE_TO_REPRODUCE
+  INSUFFICIENT_INFORMATION
+  NOT_TO_BE_FIXED
+  WONT_FIX
+  NO_ACTION
+  THIRD_PARTY_TO_RESOLVE
+  WITHDRAWN
+}
+
+enum Classification {
+  SECURITY
+  CRASH_HANG_DATA_LOSS
+  POWER
+  PERFORMANCE
+  UI_USABILITY
+  SERIOUS_BUG
+  OTHER_BUG
+  FEATURE_NEW
+  ENHANCEMENT
+  TASK
+  QUESTION
+  OTHER
+}
+
+enum Reproducibility {
+  ALWAYS
+  SOMETIMES
+  RARELY
+  UNABLE
+  DID_NOT_TRY
+  NOT_APPLICABLE
+}
+
+/// Only canonical directions are stored. Inverses (BLOCKED_BY, CHILD_OF,
+/// HAS_DUPLICATE, CLONED_TO, CAUSES) are rendered by invertRelation().
+enum RelationType {
+  DUPLICATE_OF
+  RELATED_TO
+  BLOCKS
+  PARENT_OF
+  CLONE_OF
+  CAUSED_BY
+}
+
+enum SubscriberRole {
+  CC
+  WATCHER
+}
+
+enum MilestoneStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum QueryVisibility {
+  PRIVATE
+  SHARED
+}
+
+enum ActivityKind {
+  RADAR_CREATED
+  FIELDS_CHANGED
+  COMMENT_ADDED
+  COMMENT_EDITED
+  COMMENT_DELETED
+  RELATION_ADDED
+  RELATION_REMOVED
+  SUBSCRIBER_ADDED
+  SUBSCRIBER_REMOVED
+  KEYWORD_ADDED
+  KEYWORD_REMOVED
+}
+
+enum NotificationReason {
+  ASSIGNED
+  CC_ADDED
+  MENTIONED
+  COMMENTED
+  STATE_CHANGED
+  SUBSCRIBED
+}
+
+// ───────────────────────────── identity ─────────────────────────────
+// The four models below are owned by better-auth's Prisma adapter.
+// Extra columns are fine; renaming its columns is not.
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // ours
+  handle   String  @unique /// short name used for @mentions and assignee search
+  jobTitle String?
+  isActive Boolean @default(true)
+  isAdmin  Boolean @default(false)
+
+  sessions             Session[]
+  accounts             Account[]
+  originatedRadars     Radar[]           @relation("RadarOriginator")
+  assignedRadars       Radar[]           @relation("RadarAssignee")
+  defaultForComponents Component[]       @relation("ComponentDefaultAssignee")
+  subscriptions        RadarSubscriber[] @relation("SubscriptionUser")
+  subscriptionsGranted RadarSubscriber[] @relation("SubscriptionAddedBy")
+  comments             Comment[]         @relation("CommentAuthor")
+  mentions             CommentMention[]
+  activityEvents       ActivityEvent[]   @relation("ActivityActor")
+  relationsCreated     RadarRelation[]   @relation("RelationCreatedBy")
+  keywordsAdded        RadarKeyword[]    @relation("KeywordAddedBy")
+  savedQueries         SavedQuery[]
+  notifications        Notification[]
+
+  @@index([name])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String? /// hash, for the email+password provider
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────────── taxonomy ─────────────────────────────
+
+model Component {
+  id          String  @id @default(cuid())
+  name        String
+  parentId    String?
+  /// materialized path, e.g. "Radar/Web/Search" — subtree filters are a
+  /// startsWith on this indexed column rather than a recursive CTE
+  path        String  @unique
+  depth       Int     @default(0)
+  description String?
+  isActive    Boolean @default(true)
+
+  defaultAssigneeId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent          Component?         @relation("ComponentTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Component[]        @relation("ComponentTree")
+  defaultAssignee User?              @relation("ComponentDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
+  versions        ComponentVersion[]
+  radars          Radar[]
+  milestones      Milestone[]
+
+  @@unique([parentId, name])
+  @@index([path])
+}
+
+model ComponentVersion {
+  id          String  @id @default(cuid())
+  componentId String
+  name        String /// "Unspecified", "1.0", "17.4"
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  component Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  radars    Radar[]
+
+  @@unique([componentId, name])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  componentId String?
+  status      MilestoneStatus @default(PLANNED)
+  startsAt    DateTime?
+  targetDate  DateTime?
+  completedAt DateTime?
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  component Component? @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  radars    Radar[]
+
+  @@unique([componentId, name])
+  @@index([status, targetDate])
+}
+
+model Keyword {
+  id          String   @id @default(cuid())
+  name        String   @unique /// lowercase-kebab, the stable key
+  label       String
+  color       String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  radars RadarKeyword[]
+}
+
+model RadarKeyword {
+  radarId   String
+  keywordId String
+  addedById String?
+  addedAt   DateTime @default(now())
+
+  radar   Radar   @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  addedBy User?   @relation("KeywordAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@id([radarId, keywordId])
+  @@index([keywordId])
+}
+
+// ────────────────────────────── the radar ──────────────────────────────
+
+model Radar {
+  id String @id @default(cuid())
+  /// human-facing id: /radars/100000001 and rdar://problem/100000001
+  /// backed by radar_number_seq, created by hand in the init migration
+  number  Int    @unique @default(dbgenerated("nextval('radar_number_seq')"))
+  /// optimistic concurrency token, incremented by every audited write
+  version Int    @default(0)
+
+  title String
+
+  // structured description sections, all markdown
+  summary          String  @db.Text
+  stepsToReproduce String? @db.Text
+  expectedResults  String? @db.Text
+  actualResults    String? @db.Text
+  versionBuild     String? @db.Text
+  configuration    String? @db.Text
+  notes            String? @db.Text
+
+  classification  Classification
+  reproducibility Reproducibility @default(NOT_APPLICABLE)
+  /// 1..5, CHECK constraint added in the init migration. Int, not an enum,
+  /// so `priority <= 2` is an index range scan.
+  priority        Int             @default(3) @db.SmallInt
+  state           RadarState      @default(ANALYZE)
+  substate        RadarSubstate   @default(OPEN)
+  isRegression    Boolean         @default(false)
+  fixedInBuild    String?
+
+  componentId        String
+  componentVersionId String?
+  milestoneId        String?
+  originatorId       String
+  assigneeId         String?
+  /// denormalized next to the DUPLICATE_OF edge on purpose — closing as a
+  /// duplicate is a first-class workflow and deserves one indexed FK.
+  /// Only closeAsDuplicate() may write this or the edge.
+  duplicateOfId      String?
+
+  dueDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  stateChangedAt DateTime  @default(now())
+  resolvedAt     DateTime?
+  lastActivityAt DateTime  @default(now())
+
+  component        Component         @relation(fields: [componentId], references: [id], onDelete: Restrict)
+  componentVersion ComponentVersion? @relation(fields: [componentVersionId], references: [id], onDelete: SetNull)
+  milestone        Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  originator       User              @relation("RadarOriginator", fields: [originatorId], references: [id], onDelete: Restrict)
+  assignee         User?             @relation("RadarAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  duplicateOf      Radar?            @relation("RadarDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates       Radar[]           @relation("RadarDuplicate")
+
+  keywords      RadarKeyword[]
+  subscribers   RadarSubscriber[]
+  comments      Comment[]
+  activity      ActivityEvent[]
+  outgoing      RadarRelation[]   @relation("RelationSource")
+  incoming      RadarRelation[]   @relation("RelationTarget")
+  notifications Notification[]
+
+  @@index([state, substate])
+  @@index([assigneeId, state])
+  @@index([componentId, state])
+  @@index([milestoneId, state])
+  @@index([originatorId, state])
+  @@index([priority, lastActivityAt(sort: Desc)])
+  @@index([lastActivityAt(sort: Desc)])
+  @@index([duplicateOfId])
+}
+
+model RadarSubscriber {
+  id        String         @id @default(cuid())
+  radarId   String
+  userId    String
+  role      SubscriberRole
+  muted     Boolean        @default(false)
+  addedById String?
+  addedAt   DateTime       @default(now())
+
+  radar   Radar @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  user    User  @relation("SubscriptionUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User? @relation("SubscriptionAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([radarId, userId, role])
+  @@index([userId, role])
+}
+
+model RadarRelation {
+  id          String       @id @default(cuid())
+  sourceId    String
+  targetId    String
+  type        RelationType
+  note        String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+
+  source    Radar @relation("RelationSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    Radar @relation("RelationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("RelationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, targetId, type])
+  @@index([targetId, type])
+}
+
+// ────────────────────── discussion and audit trail ──────────────────────
+
+model Comment {
+  id        String    @id @default(cuid())
+  radarId   String
+  authorId  String
+  parentId  String?
+  body      String    @db.Text /// markdown
+  bodyText  String    @db.Text /// markdown stripped, for search
+  editedAt  DateTime?
+  deletedAt DateTime? /// soft delete — the history has to survive
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  radar         Radar            @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  author        User             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  parent        Comment?         @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies       Comment[]        @relation("CommentThread")
+  mentions      CommentMention[]
+  activityEvent ActivityEvent?
+
+  @@index([radarId, createdAt])
+  @@index([parentId])
+}
+
+model CommentMention {
+  commentId String
+  userId    String
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+/// The feed *is* this table, ordered by createdAt. One event per mutation,
+/// N FieldChange children — so a state+substate+assignee edit reads as one line.
+model ActivityEvent {
+  id        String       @id @default(cuid())
+  radarId   String
+  actorId   String? /// null = system
+  kind      ActivityKind
+  note      String? /// optional transition comment
+  commentId String?      @unique
+  createdAt DateTime     @default(now())
+
+  radar   Radar         @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  actor   User?         @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  comment Comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  changes FieldChange[]
+
+  @@index([radarId, createdAt])
+  @@index([createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([kind, createdAt(sort: Desc)])
+}
+
+/// Universal payload. Scalars, relations, CC and keywords all serialize here:
+/// field is a registry key like "state", "assigneeId", "relation.BLOCKS", "cc".
+/// *Label is a snapshot at write time so history survives renames;
+/// *Value stays queryable (field='state' AND toValue='CLOSED' drives burnup).
+model FieldChange {
+  id        String  @id @default(cuid())
+  eventId   String
+  field     String
+  fromValue String?
+  toValue   String?
+  fromLabel String?
+  toLabel   String?
+
+  event ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([field, toValue])
+}
+
+// ───────────────────────── saved queries and inbox ─────────────────────────
+
+model SavedQuery {
+  id            String          @id @default(cuid())
+  ownerId       String
+  name          String
+  description   String?
+  /// canonical URL query string, not JSON — running one is
+  /// redirect('/radars?' + params)
+  params        String          @db.Text
+  schemaVersion Int             @default(1)
+  visibility    QueryVisibility @default(PRIVATE)
+  isPinned      Boolean         @default(false)
+  sortOrder     Int             @default(0)
+  icon          String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, name])
+  @@index([visibility, sortOrder])
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  recipientId String
+  radarId     String
+  eventId     String?
+  reason      NotificationReason
+  readAt      DateTime?
+  createdAt   DateTime           @default(now())
+
+  recipient User  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  radar     Radar @relation(fields: [radarId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt(sort: Desc)])
+}
