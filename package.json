@@ -23,7 +23,8 @@
     "test:integration": "vitest run tests/integration",
     "test:all": "vitest run",
     "build:check": "next build --webpack",
-    "lockfile:normalize": "node scripts/normalize-lockfile.mjs"
+    "lockfile:normalize": "node scripts/normalize-lockfile.mjs",
+    "check:origins": "node --conditions=react-server --env-file=.env --import tsx/esm scripts/check-origins.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
