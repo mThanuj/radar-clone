@@ -87,6 +87,38 @@ describe("fan-out", () => {
     expect(mail[0].subject).toContain("Assigned to you");
   });
 
+  it("tells the previous assignee when the work moves off them", async () => {
+    const radar = await newRadar("Handover subject");
+    await updateRadar({
+      radarId: radar.id,
+      actorId: fx.user.id,
+      patch: { assigneeId: fx.other.id },
+    });
+    await db.notification.deleteMany({ where: { recipientId: fx.other.id } });
+
+    const third = await db.user.create({
+      data: {
+        name: "Taker",
+        email: `zz-test-taker-${Date.now()}@radar.local`,
+        handle: `zz-test-taker-${Date.now()}`,
+      },
+      select: { id: true },
+    });
+
+    await updateRadar({
+      radarId: radar.id,
+      actorId: fx.user.id,
+      patch: { assigneeId: third.id },
+    });
+
+    // Only reachable through the "previousAssignee" audience, which fanOut
+    // reads out of the diff — the one place a wrong field key goes unnoticed,
+    // because being a watcher would still produce the vaguer SUBSCRIBED.
+    const theirs = await notificationsFor(fx.other.id);
+    expect(theirs).toHaveLength(1);
+    expect(theirs[0].reason).toBe("UNASSIGNED");
+  });
+
   it("gives each person the sharpest reason when one save does several things", async () => {
     const radar = await newRadar("Combined subject");
     await updateRadar({

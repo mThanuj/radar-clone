@@ -66,6 +66,9 @@ export function classifyReasons(
       break;
   }
 
+  // Audit field keys are the *label* names diffRadar emits, not the Radar
+  // column names: "assignee", not "assigneeId". See AUDITED_COLUMNS in
+  // src/server/activity/record.ts and the key list in audit-labels.ts.
   const byField = new Map(changes.map((c) => [c.field, c]));
 
   const state = byField.get("state");
@@ -88,7 +91,7 @@ export function classifyReasons(
     add("STATE_CHANGED");
   }
 
-  const assignee = byField.get("assigneeId");
+  const assignee = byField.get("assignee");
   if (assignee) {
     if (assignee.toValue) add("ASSIGNED", "assignee");
     if (assignee.fromValue) add("UNASSIGNED", "previousAssignee");
@@ -104,7 +107,7 @@ export function classifyReasons(
     }
   }
 
-  if (byField.has("milestoneId")) add("MILESTONE_CHANGED");
+  if (byField.has("milestone")) add("MILESTONE_CHANGED");
 
   // Anything audited that produced no sharper reason still deserves a line in
   // the inbox for people watching the radar.

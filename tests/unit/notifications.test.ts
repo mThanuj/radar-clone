@@ -9,6 +9,7 @@ import {
   mostSpecific,
 } from "@/lib/notifications/catalog";
 import { classifyReasons } from "@/lib/notifications/classify";
+import { diffRadar } from "@/server/activity/record";
 import { NotificationReason } from "@/generated/prisma/enums";
 
 describe("catalog", () => {
@@ -95,7 +96,7 @@ describe("classifyReasons", () => {
 
   it("tells the new and previous assignee apart", () => {
     expect(
-      classifyReasons("FIELDS_CHANGED", [change("assigneeId", "user-a", "user-b")]),
+      classifyReasons("FIELDS_CHANGED", [change("assignee", "user-a", "user-b")]),
     ).toEqual([
       { reason: "ASSIGNED", audience: "assignee" },
       { reason: "UNASSIGNED", audience: "previousAssignee" },
@@ -103,13 +104,36 @@ describe("classifyReasons", () => {
 
     // First assignment: nobody to unassign.
     expect(
-      classifyReasons("FIELDS_CHANGED", [change("assigneeId", null, "user-b")]),
+      classifyReasons("FIELDS_CHANGED", [change("assignee", null, "user-b")]),
     ).toEqual([{ reason: "ASSIGNED", audience: "assignee" }]);
 
     // Cleared: nobody to assign.
     expect(
-      classifyReasons("FIELDS_CHANGED", [change("assigneeId", "user-a", null)]),
+      classifyReasons("FIELDS_CHANGED", [change("assignee", "user-a", null)]),
     ).toEqual([{ reason: "UNASSIGNED", audience: "previousAssignee" }]);
+  });
+
+  it("reads the field keys a real diff produces, not hand-written ones", () => {
+    // The rest of this suite spells the field names out, so it cannot catch
+    // the classifier and the differ disagreeing. diffRadar keys audit entries
+    // by label ("assignee"), not by column ("assigneeId"); when the classifier
+    // looked for the column name, UNASSIGNED and MILESTONE_CHANGED never fired
+    // in production while every test above still passed.
+    const changes = diffRadar(
+      { assigneeId: "user-a", milestoneId: "m-1" },
+      { assigneeId: "user-b", milestoneId: "m-2" },
+    );
+
+    const reasons = classifyReasons("FIELDS_CHANGED", changes);
+    expect(reasons).toContainEqual({ reason: "ASSIGNED", audience: "assignee" });
+    expect(reasons).toContainEqual({
+      reason: "UNASSIGNED",
+      audience: "previousAssignee",
+    });
+    expect(reasons).toContainEqual({
+      reason: "MILESTONE_CHANGED",
+      audience: "subscribers",
+    });
   });
 
   it("only reports priority when it actually goes up in urgency", () => {
@@ -167,7 +191,7 @@ describe("classifyReasons", () => {
     const reasons = classifyReasons("FIELDS_CHANGED", [
       change("state", "VERIFY", "CLOSED"),
       change("substate", "VERIFY", "SOFTWARE_CHANGED"),
-      change("assigneeId", "user-a", "user-b"),
+      change("assignee", "user-a", "user-b"),
     ]);
     expect(reasons).toContainEqual({ reason: "RESOLVED", audience: "subscribers" });
     expect(reasons).toContainEqual({ reason: "ASSIGNED", audience: "assignee" });

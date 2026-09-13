@@ -59,8 +59,10 @@ export async function fanOut(tx: Tx, args: FanOutArgs): Promise<string[]> {
   });
   if (!radar) return [];
 
+  // "assignee" is the audit field key for the assigneeId column; see
+  // AUDITED_COLUMNS in src/server/activity/record.ts.
   const previousAssigneeId =
-    changes.find((c) => c.field === "assigneeId")?.fromValue ?? null;
+    changes.find((c) => c.field === "assignee")?.fromValue ?? null;
 
   const audiences: Record<string, string[]> = {
     subscribers: radar.subscribers.map((s) => s.userId),
