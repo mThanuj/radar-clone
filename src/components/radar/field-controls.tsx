@@ -71,15 +71,23 @@ export function FieldRow({
   );
 }
 
+/**
+ * Trigger for every picker in the sidebar.
+ *
+ * Base UI's `render` prop clones this element and hands it the open handler,
+ * the ref and the aria wiring — so it has to spread everything it receives
+ * onto the real <button>. Swallowing the props leaves a button that looks
+ * right and does nothing.
+ */
 export function PickerButton({
   children,
   className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+  ...props
+}: React.ComponentProps<"button">) {
   return (
     <button
+      type="button"
+      {...props}
       className={cn(
         "hover:bg-muted flex w-full items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-sm",
         className,
