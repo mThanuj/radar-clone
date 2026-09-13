@@ -164,7 +164,11 @@ export default async function RadarDetailPage({
               />
             </div>
             <div className="border-t p-4">
-              <CommentComposer radarId={radar.id} number={radar.number} />
+              <CommentComposer
+                radarId={radar.id}
+                number={radar.number}
+                people={people}
+              />
             </div>
           </section>
         </div>

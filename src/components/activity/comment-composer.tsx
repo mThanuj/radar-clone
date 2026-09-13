@@ -5,17 +5,22 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { addCommentAction } from "@/server/comments/actions";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  MentionTextarea,
+  type MentionPerson,
+} from "@/components/activity/mention-textarea";
 
 export function CommentComposer({
   radarId,
   number,
+  people,
   parentId,
   autoFocus = false,
   onDone,
 }: {
   radarId: string;
   number: number;
+  people: MentionPerson[];
   parentId?: string;
   autoFocus?: boolean;
   onDone?: () => void;
@@ -46,10 +51,11 @@ export function CommentComposer({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2">
-      <Textarea
+      <MentionTextarea
+        people={people}
         value={body}
         autoFocus={autoFocus}
-        onChange={(event) => setBody(event.target.value)}
+        onValueChange={setBody}
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) submit(event);
         }}
