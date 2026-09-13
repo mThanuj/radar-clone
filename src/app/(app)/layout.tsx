@@ -6,6 +6,15 @@ import { NotificationProvider } from "@/components/notifications/notification-pr
 import { requireUser } from "@/server/guards";
 import { getUnreadCount } from "@/server/notifications/queries";
 
+/**
+ * Server Actions inherit the segment's limit, and every mutation in the app
+ * queues its outbox sweep with `after()` — which runs on the same invocation,
+ * after the response. At the platform default a slow SMTP handshake can be cut
+ * off mid-send, leaving the claimed row stranded; 60s is the Hobby ceiling and
+ * costs nothing when the work finishes in a second, as it normally does.
+ */
+export const maxDuration = 60;
+
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   // One cheap indexed count. Everything expensive in the sidebar streams.

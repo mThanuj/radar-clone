@@ -13,6 +13,19 @@ import type { Tx } from "@/server/tx";
 const MAX_ATTEMPTS = 5;
 /** Backoff per attempt, in minutes. */
 const BACKOFF = [1, 5, 15, 60, 180];
+/**
+ * How long a row may sit in SENDING before another sweep is allowed to take
+ * it back.
+ *
+ * Claiming flips the row to SENDING in its own statement, so a process that
+ * dies between the claim and the send — a serverless invocation cut off while
+ * running post-response work, a deploy mid-flight — leaves a row no sweep can
+ * ever pick up again, because PENDING/FAILED are the only statuses it looks
+ * for. That is silent permanent loss, which is the worst failure this queue
+ * can have. Longer than any plausible SMTP handshake, so it cannot steal a
+ * send that is merely slow.
+ */
+const CLAIM_TIMEOUT_MINUTES = 10;
 
 /**
  * Queue an email inside the caller's transaction.
@@ -86,9 +99,15 @@ export async function dispatchPending(limit = 25): Promise<{
        SET status = 'SENDING', attempts = attempts + 1, "updatedAt" = now()
      WHERE id IN (
        SELECT id FROM "EmailMessage"
-        WHERE status IN ('PENDING', 'FAILED')
-          AND "scheduledFor" <= now()
-          AND attempts < ${MAX_ATTEMPTS}
+        WHERE attempts < ${MAX_ATTEMPTS}
+          AND (
+            (status IN ('PENDING', 'FAILED') AND "scheduledFor" <= now())
+            OR (
+              status = 'SENDING'
+              AND "updatedAt" <
+                  now() - make_interval(mins => ${CLAIM_TIMEOUT_MINUTES}::int)
+            )
+          )
         ORDER BY "scheduledFor"
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -146,6 +165,47 @@ export async function dispatchPending(limit = 25): Promise<{
   }
 
   return { sent, failed };
+}
+
+/**
+ * What the queue looks like right now.
+ *
+ * Exists because "no mail arrived" has two completely different causes that
+ * look identical from outside: fan-out never queued anything (nobody to tell —
+ * remember it drops the actor, so a one-account deployment can never notify
+ * anyone), or it queued and delivery is failing. One authenticated request to
+ * /api/cron/email tells them apart on a deployment whose database you can't
+ * open a psql session against.
+ */
+export async function outboxSummary() {
+  const [byStatus, oldestUnsent, lastFailure, notifications, activeUsers] =
+    await Promise.all([
+      db.emailMessage.groupBy({ by: ["status"], _count: { _all: true } }),
+      db.emailMessage.findFirst({
+        where: { status: { in: ["PENDING", "FAILED", "SENDING"] } },
+        orderBy: { scheduledFor: "asc" },
+        select: { scheduledFor: true, status: true, template: true },
+      }),
+      db.emailMessage.findFirst({
+        where: { lastError: { not: null } },
+        orderBy: { updatedAt: "desc" },
+        select: { updatedAt: true, attempts: true, lastError: true },
+      }),
+      db.notification.count(),
+      db.user.count({ where: { isActive: true } }),
+    ]);
+
+  return {
+    byStatus: Object.fromEntries(
+      byStatus.map((row) => [row.status, row._count._all]),
+    ),
+    oldestUnsent,
+    lastFailure,
+    // Zero notifications alongside zero queued mail means fan-out is finding
+    // nobody, which is a different problem from mail that will not send.
+    notifications,
+    activeUsers,
+  };
 }
 
 /**

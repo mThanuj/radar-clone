@@ -321,6 +321,58 @@ describe("outbox", () => {
     expect(mail[0].attempts).toBe(1);
   });
 
+  it("takes back a claim whose sender died instead of losing the mail", async () => {
+    // Queued directly rather than through a mutation: this is about the claim,
+    // and an interactive transaction per test is the slow part of this suite.
+    const queued = await db.emailMessage.create({
+      data: {
+        recipientId: fx.other.id,
+        to: "stranded@radar.local",
+        subject: "Stranded subject",
+        template: "ASSIGNED",
+        payload: {
+          reason: "ASSIGNED",
+          radar: { number: 100000001, title: "Stranded subject" },
+          actorName: "Test",
+          changes: [],
+          radarUrl: "https://radar.invalid/radars/100000001",
+          settingsUrl: "https://radar.invalid/settings/notifications",
+          unsubscribeUrl: "https://radar.invalid/api/unsubscribe?token=x",
+        },
+      },
+      select: { id: true },
+    });
+
+    const statusNow = async () =>
+      (
+        await db.emailMessage.findUniqueOrThrow({
+          where: { id: queued.id },
+          select: { status: true },
+        })
+      ).status;
+
+    const age = (interval: string) =>
+      db.$executeRawUnsafe(
+        `UPDATE "EmailMessage"
+            SET status = 'SENDING', attempts = 1,
+                "updatedAt" = now() - interval '${interval}'
+          WHERE id = $1`,
+        queued.id,
+      );
+
+    // Claimed a moment ago: a concurrent sweep must not steal a send that is
+    // merely slow.
+    await age("0 seconds");
+    await dispatchPending();
+    expect(await statusNow()).toBe("SENDING");
+
+    // Still SENDING an hour later means the process that claimed it is gone.
+    // Nothing but this reclaim will ever pick the row up again.
+    await age("1 hour");
+    await dispatchPending();
+    expect(await statusNow()).toBe("SENT");
+  });
+
   it("ties each email to its notification so a retry cannot duplicate it", async () => {
     const radar = await newRadar("Linkage subject");
     await updateRadar({

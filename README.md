@@ -109,6 +109,19 @@ one job, because Vercel Hobby allows cron only once per day. Real-time uses
 Upstash pub/sub behind an SSE relay, falling back to 20-second polling after
 repeated stream failures.
 
+When mail is not arriving, ask the deployment rather than guessing — the same
+endpoint drains the queue and reports it:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "https://<host>/api/cron/email?verify=1"
+```
+
+`queue.byStatus` empty with `queue.notifications: 0` means fan-out is finding
+nobody to tell, which is a different problem from mail that will not send.
+Note that fan-out drops the actor, so a deployment with one account can never
+notify anyone — the test button on `/settings/notifications` is the only path
+that mails you directly.
+
 ## Scripts
 
 | Command | Does |
