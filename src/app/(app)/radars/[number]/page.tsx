@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/radar/description";
 import { resolutionOf } from "@/lib/radar/state-machine";
 import { SUBSTATE_LABEL } from "@/lib/radar/taxonomy";
-import { getFeed } from "@/server/activity/queries";
+import { getFeed, type FeedEvent } from "@/server/activity/queries";
 import { requireUser } from "@/server/guards";
 import {
   getComponentTree,
@@ -46,19 +47,26 @@ export default async function RadarDetailPage({
 }: PageProps<"/radars/[number]">) {
   const user = await requireUser();
   const { number } = await params;
+  const radarNumber = Number(number);
 
-  // The four lookups don't depend on the radar, so they start now rather than
-  // after it returns — one round trip instead of two.
+  // Nothing below depends on the radar row, so it all starts now rather than
+  // after it returns. The feed is keyed by number for exactly this reason:
+  // waiting for radar.id put the heaviest query on the page in front of it.
+  const feedPromise = getFeed(radarNumber);
   const peoplePromise = getPeople();
   const componentsPromise = getComponentTree();
   const milestonesPromise = getMilestones();
   const keywordsPromise = getKeywords();
 
-  const radar = await getRadarByNumber(Number(number));
+  // notFound() below abandons the feed mid-flight; a handler keeps a database
+  // error there from surfacing as an unhandled rejection instead of the real
+  // failure, which getRadarByNumber is about to report anyway.
+  void feedPromise.catch(() => {});
+
+  const radar = await getRadarByNumber(radarNumber);
   if (!radar) notFound();
 
-  const [events, people, components, milestones, keywords] = await Promise.all([
-    getFeed(radar.id),
+  const [people, components, milestones, keywords] = await Promise.all([
     peoplePromise,
     componentsPromise,
     milestonesPromise,
@@ -157,11 +165,15 @@ export default async function RadarDetailPage({
               <h2 className="text-sm font-medium">Activity</h2>
             </header>
             <div className="px-4">
-              <ActivityFeed
-                events={events}
-                radarNumber={radar.number}
-                currentUserId={user.id}
-              />
+              {/* Streamed: the radar itself is what people came for, and the
+                  feed grows without bound while the rest of the page doesn't. */}
+              <Suspense fallback={<ActivitySkeleton />}>
+                <Activity
+                  events={feedPromise}
+                  radarNumber={radar.number}
+                  currentUserId={user.id}
+                />
+              </Suspense>
             </div>
             <div className="border-t p-4">
               <CommentComposer
@@ -196,6 +208,40 @@ export default async function RadarDetailPage({
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+async function Activity({
+  events,
+  radarNumber,
+  currentUserId,
+}: {
+  events: Promise<FeedEvent[]>;
+  radarNumber: number;
+  currentUserId: string;
+}) {
+  return (
+    <ActivityFeed
+      events={await events}
+      radarNumber={radarNumber}
+      currentUserId={currentUserId}
+    />
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="flex flex-col gap-3 py-3" aria-hidden>
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex gap-3">
+          <div className="bg-muted size-6 shrink-0 animate-pulse rounded-full" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="bg-muted h-3 w-40 animate-pulse rounded" />
+            <div className="bg-muted h-10 animate-pulse rounded-lg" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

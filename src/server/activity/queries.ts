@@ -35,10 +35,17 @@ export type FeedEvent = Prisma.ActivityEventGetPayload<{
   select: typeof EVENT_SELECT;
 }>;
 
-/** Per-radar feed, oldest first — a radar reads like a conversation. */
-export async function getFeed(radarId: string, take = 200) {
+/**
+ * Per-radar feed, oldest first — a radar reads like a conversation.
+ *
+ * Keyed by number rather than id so the detail page can start it alongside the
+ * radar lookup instead of after it. Waiting for the id first made this the
+ * second leg of a waterfall behind the heaviest query on the page, for no
+ * reason: the number is already in the URL.
+ */
+export async function getFeed(radarNumber: number, take = 200) {
   return db.activityEvent.findMany({
-    where: { radarId },
+    where: { radar: { number: radarNumber } },
     orderBy: { createdAt: "asc" },
     take,
     select: EVENT_SELECT,
