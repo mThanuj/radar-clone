@@ -175,7 +175,5 @@ export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   RELATION_REMOVED: "removed a relationship",
   SUBSCRIBER_ADDED: "changed subscribers",
   SUBSCRIBER_REMOVED: "changed subscribers",
-  KEYWORD_ADDED: "changed keywords",
-  KEYWORD_REMOVED: "changed keywords",
 };
 

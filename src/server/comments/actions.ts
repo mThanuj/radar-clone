@@ -16,7 +16,6 @@ const addSchema = z.object({
   radarId: z.string().min(1),
   number: z.coerce.number().int(),
   body: z.string().trim().min(1).max(50_000),
-  parentId: z.string().nullish(),
 });
 
 export async function addCommentAction(
@@ -24,7 +23,7 @@ export async function addCommentAction(
 ): Promise<ActionResult> {
   try {
     const user = await requireUser();
-    const { radarId, number, body, parentId } = addSchema.parse(input);
+    const { radarId, number, body } = addSchema.parse(input);
 
     const { recipients } = await withAuditResult(user.id, () =>
       db.$transaction(async (tx) => {
@@ -40,12 +39,8 @@ export async function addCommentAction(
           data: {
             radarId,
             authorId: user.id,
-            parentId: parentId ?? null,
             body,
             bodyText: stripMarkdown(body),
-            mentions: mentioned.length
-              ? { create: mentioned.map((m) => ({ userId: m.id })) }
-              : undefined,
           },
           select: { id: true },
         });

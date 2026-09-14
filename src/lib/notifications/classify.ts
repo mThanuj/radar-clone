@@ -57,8 +57,6 @@ export function classifyReasons(
     case "SUBSCRIBER_REMOVED":
     case "RELATION_ADDED":
     case "RELATION_REMOVED":
-    case "KEYWORD_ADDED":
-    case "KEYWORD_REMOVED":
       // Cross-radar and subscriber events name their recipients explicitly at
       // the call site, because the audience isn't derivable from the diff.
       return out;

@@ -56,7 +56,6 @@ async function main() {
       name: "Radar",
       path: "Radar",
       depth: 0,
-      description: "Root component. Add children under Settings → Components.",
     },
   });
 

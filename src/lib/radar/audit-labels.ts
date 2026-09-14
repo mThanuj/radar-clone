@@ -19,7 +19,6 @@ const EXTRA: Record<string, string> = {
   assignee: "Assignee",
   duplicateOf: "Duplicate of",
   isRegression: "Regression",
-  fixedInBuild: "Fixed in build",
   dueDate: "Due date",
   keyword: "Keyword",
   cc: "CC",

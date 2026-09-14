@@ -83,7 +83,6 @@ const patchSchema = z.object({
   milestoneId: z.string().nullish(),
   assigneeId: z.string().nullish(),
   isRegression: z.boolean().optional(),
-  fixedInBuild: z.string().max(200).nullish(),
   dueDate: z.coerce.date().nullish(),
   keywordIds: z.array(z.string()).optional(),
 });

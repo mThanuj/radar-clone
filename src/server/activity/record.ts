@@ -54,7 +54,6 @@ const AUDITED_COLUMNS = [
   ["assigneeId", "assignee"],
   ["duplicateOfId", "duplicateOf"],
   ["isRegression", "isRegression"],
-  ["fixedInBuild", "fixedInBuild"],
   ["dueDate", "dueDate"],
 ] as const;
 

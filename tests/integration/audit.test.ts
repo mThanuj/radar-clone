@@ -26,7 +26,6 @@ const FIELD_TO_COLUMN: Record<string, string> = {
   assignee: "assigneeId",
   duplicateOf: "duplicateOfId",
   isRegression: "isRegression",
-  fixedInBuild: "fixedInBuild",
   dueDate: "dueDate",
 };
 
@@ -83,7 +82,6 @@ describe("audit trail", () => {
       { notes: "Some notes." },
       { isRegression: true },
       { dueDate: new Date("2026-10-01T00:00:00.000Z") },
-      { fixedInBuild: "24A335" },
       { state: "VERIFY" },
       { assigneeId: null },
       { milestoneId: null },

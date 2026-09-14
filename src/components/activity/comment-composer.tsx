@@ -14,14 +14,12 @@ export function CommentComposer({
   radarId,
   number,
   people,
-  parentId,
   autoFocus = false,
   onDone,
 }: {
   radarId: string;
   number: number;
   people: MentionPerson[];
-  parentId?: string;
   autoFocus?: boolean;
   onDone?: () => void;
 }) {
@@ -37,7 +35,6 @@ export function CommentComposer({
         radarId,
         number,
         body,
-        parentId: parentId ?? null,
       });
       if (result.ok) {
         setBody("");

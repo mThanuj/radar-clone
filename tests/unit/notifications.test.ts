@@ -178,8 +178,6 @@ describe("classifyReasons", () => {
       "RELATION_REMOVED",
       "SUBSCRIBER_ADDED",
       "SUBSCRIBER_REMOVED",
-      "KEYWORD_ADDED",
-      "KEYWORD_REMOVED",
       "COMMENT_DELETED",
       "RADAR_CREATED",
     ] as const) {

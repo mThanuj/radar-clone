@@ -47,10 +47,6 @@ export async function searchRadars(query: RadarQuery, ctx: QueryContext) {
   return { rows, total };
 }
 
-export async function countRadars(query: RadarQuery, ctx: QueryContext) {
-  return db.radar.count({ where: toPrismaWhere(query, ctx) });
-}
-
 /** Board columns: the open states, each capped so one column can't blow up. */
 export async function boardData(
   query: RadarQuery,
@@ -90,7 +86,7 @@ const DETAIL_INCLUDE = {
     orderBy: { number: "asc" },
   },
   keywords: {
-    select: { keyword: { select: { id: true, name: true, label: true, color: true } } },
+    select: { keyword: { select: { id: true, name: true, label: true } } },
   },
   subscribers: {
     select: {
@@ -200,7 +196,7 @@ export const getPeople = cache(async () =>
 export const getKeywords = cache(async () =>
   db.keyword.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, label: true, color: true },
+    select: { id: true, name: true, label: true },
   }),
 );
 
@@ -212,9 +208,7 @@ export const getMilestones = cache(async () =>
       name: true,
       description: true,
       status: true,
-      startsAt: true,
       targetDate: true,
-      completedAt: true,
       component: { select: { id: true, path: true } },
       _count: { select: { radars: true } },
     },

@@ -54,7 +54,6 @@ export type RadarPatch = Partial<{
   milestoneId: string | null;
   assigneeId: string | null;
   isRegression: boolean;
-  fixedInBuild: string | null;
   dueDate: Date | null;
   /**
    * Written only by closeAsDuplicate(). Never expose this in an action
@@ -83,7 +82,6 @@ const MUTABLE_COLUMNS = [
   "milestoneId",
   "assigneeId",
   "isRegression",
-  "fixedInBuild",
   "dueDate",
   "duplicateOfId",
 ] as const;

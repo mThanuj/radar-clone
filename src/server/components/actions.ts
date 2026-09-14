@@ -9,7 +9,6 @@ import { requireUser } from "@/server/guards";
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
   parentId: z.string().nullish(),
-  description: z.string().max(500).nullish(),
   defaultAssigneeId: z.string().nullish(),
 });
 
@@ -41,7 +40,6 @@ export async function createComponentAction(
         // Materialized path: subtree filters become a prefix scan.
         path: parent ? `${parent.path}/${parsed.name}` : parsed.name,
         depth: parent ? parent.depth + 1 : 0,
-        description: parsed.description ?? null,
         defaultAssigneeId: parsed.defaultAssigneeId ?? null,
       },
       select: { id: true },
@@ -58,7 +56,6 @@ export async function createComponentAction(
 const renameSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(80),
-  description: z.string().max(500).nullish(),
   defaultAssigneeId: z.string().nullish(),
   isActive: z.boolean().optional(),
 });
@@ -93,7 +90,6 @@ export async function updateComponentAction(
         data: {
           name: parsed.name,
           path: nextPath,
-          description: parsed.description ?? null,
           defaultAssigneeId: parsed.defaultAssigneeId ?? null,
           ...(parsed.isActive === undefined ? {} : { isActive: parsed.isActive }),
         },
@@ -131,7 +127,6 @@ const keywordSchema = z.object({
     .max(40)
     .regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits and dashes."),
   label: z.string().trim().min(1).max(60).optional(),
-  color: z.string().max(20).nullish(),
 });
 
 export async function createKeywordAction(
@@ -142,11 +137,10 @@ export async function createKeywordAction(
     const parsed = keywordSchema.parse(input);
     await db.keyword.upsert({
       where: { name: parsed.name },
-      update: { label: parsed.label ?? parsed.name, color: parsed.color ?? null },
+      update: { label: parsed.label ?? parsed.name },
       create: {
         name: parsed.name,
         label: parsed.label ?? parsed.name,
-        color: parsed.color ?? null,
       },
     });
     revalidatePath("/settings/keywords");

@@ -17,9 +17,7 @@ export async function getMilestone(id: string) {
       name: true,
       description: true,
       status: true,
-      startsAt: true,
       targetDate: true,
-      completedAt: true,
       component: { select: { id: true, path: true } },
     },
   });

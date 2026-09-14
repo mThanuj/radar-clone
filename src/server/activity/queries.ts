@@ -25,7 +25,6 @@ const EVENT_SELECT = {
       createdAt: true,
       editedAt: true,
       deletedAt: true,
-      parentId: true,
       author: { select: { id: true, name: true, handle: true, image: true } },
     },
   },
@@ -54,8 +53,6 @@ export async function getFeed(radarNumber: number, take = 200) {
 
 export type TimelineFilters = {
   actorId?: string;
-  field?: string;
-  kind?: Prisma.ActivityEventWhereInput["kind"];
 };
 
 export type TimelineEvent = Prisma.ActivityEventGetPayload<{
@@ -76,8 +73,6 @@ export async function getTimeline(args: {
   const take = args.take ?? 60;
   const where: Prisma.ActivityEventWhereInput = {};
   if (args.filters?.actorId) where.actorId = args.filters.actorId;
-  if (args.filters?.kind) where.kind = args.filters.kind;
-  if (args.filters?.field) where.changes = { some: { field: args.filters.field } };
 
   const events = await db.activityEvent.findMany({
     where,

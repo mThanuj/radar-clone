@@ -108,8 +108,6 @@ enum ActivityKind {
   RELATION_REMOVED
   SUBSCRIBER_ADDED
   SUBSCRIBER_REMOVED
-  KEYWORD_ADDED
-  KEYWORD_REMOVED
 }
 
 /// Why a notification exists. Deliberately fine-grained: per-event email
@@ -153,7 +151,6 @@ enum EmailStatus {
   SENDING
   SENT
   FAILED
-  SKIPPED
 }
 
 // ───────────────────────────── identity ─────────────────────────────
@@ -185,7 +182,6 @@ model User {
   subscriptions        RadarSubscriber[] @relation("SubscriptionUser")
   subscriptionsGranted RadarSubscriber[] @relation("SubscriptionAddedBy")
   comments             Comment[]         @relation("CommentAuthor")
-  mentions             CommentMention[]
   activityEvents       ActivityEvent[]   @relation("ActivityActor")
   relationsCreated     RadarRelation[]   @relation("RelationCreatedBy")
   keywordsAdded        RadarKeyword[]    @relation("KeywordAddedBy")
@@ -257,7 +253,6 @@ model Component {
   /// startsWith on this indexed column rather than a recursive CTE
   path        String  @unique
   depth       Int     @default(0)
-  description String?
   isActive    Boolean @default(true)
 
   defaultAssigneeId String?
@@ -281,9 +276,7 @@ model Milestone {
   description String?
   componentId String?
   status      MilestoneStatus @default(PLANNED)
-  startsAt    DateTime?
   targetDate  DateTime?
-  completedAt DateTime?
   sortOrder   Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -299,7 +292,6 @@ model Keyword {
   id          String   @id @default(cuid())
   name        String   @unique /// lowercase-kebab, the stable key
   label       String
-  color       String?
   description String?
   createdAt   DateTime @default(now())
 
@@ -349,7 +341,6 @@ model Radar {
   state           RadarState      @default(ANALYZE)
   substate        RadarSubstate   @default(OPEN)
   isRegression    Boolean         @default(false)
-  fixedInBuild    String?
 
   componentId        String
   milestoneId        String?
@@ -432,7 +423,6 @@ model Comment {
   id        String    @id @default(cuid())
   radarId   String
   authorId  String
-  parentId  String?
   body      String    @db.Text /// markdown
   bodyText  String    @db.Text /// markdown stripped, for search
   editedAt  DateTime?
@@ -442,24 +432,9 @@ model Comment {
 
   radar         Radar            @relation(fields: [radarId], references: [id], onDelete: Cascade)
   author        User             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  parent        Comment?         @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
-  replies       Comment[]        @relation("CommentThread")
-  mentions      CommentMention[]
   activityEvent ActivityEvent?
 
   @@index([radarId, createdAt])
-  @@index([parentId])
-}
-
-model CommentMention {
-  commentId String
-  userId    String
-
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([commentId, userId])
-  @@index([userId])
 }
 
 /// The feed *is* this table, ordered by createdAt. One event per mutation,

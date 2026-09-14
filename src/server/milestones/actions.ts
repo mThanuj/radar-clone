@@ -13,7 +13,6 @@ const schema = z.object({
   description: z.string().max(1000).nullish(),
   componentId: z.string().nullish(),
   status: z.enum(MilestoneStatus).optional(),
-  startsAt: z.coerce.date().nullish(),
   targetDate: z.coerce.date().nullish(),
 });
 
@@ -29,9 +28,7 @@ export async function upsertMilestoneAction(
       description: parsed.description ?? null,
       componentId: parsed.componentId ?? null,
       status: parsed.status ?? "PLANNED",
-      startsAt: parsed.startsAt ?? null,
       targetDate: parsed.targetDate ?? null,
-      completedAt: parsed.status === "COMPLETED" ? new Date() : null,
     };
 
     const saved = parsed.id
