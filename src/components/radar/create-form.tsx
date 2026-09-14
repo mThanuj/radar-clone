@@ -21,7 +21,6 @@ type Component = {
   id: string;
   path: string;
   defaultAssigneeId: string | null;
-  versions: { id: string; name: string }[];
 };
 
 const selectClass =
@@ -67,7 +66,6 @@ export function CreateRadarForm({
         reproducibility: form.get("reproducibility") as never,
         priority: Number(form.get("priority")),
         componentId,
-        componentVersionId: text("componentVersionId"),
         milestoneId: text("milestoneId"),
         assigneeId: text("assigneeId"),
         isRegression: form.get("isRegression") === "on",
@@ -143,23 +141,6 @@ export function CreateRadarForm({
             {components.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.path}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="componentVersionId">Version</Label>
-          {/* Versions depend on the chosen component, as in Radar. */}
-          <select
-            id="componentVersionId"
-            name="componentVersionId"
-            className={selectClass}
-          >
-            <option value="">Unspecified</option>
-            {component?.versions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
               </option>
             ))}
           </select>

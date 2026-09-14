@@ -37,7 +37,6 @@ export const FIELD_IDS = [
   "reproducibility",
   "priority",
   "component",
-  "componentVersion",
   "milestone",
   "assignee",
   "originator",

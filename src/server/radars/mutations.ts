@@ -51,7 +51,6 @@ export type RadarPatch = Partial<{
   state: RadarState;
   substate: RadarSubstate;
   componentId: string;
-  componentVersionId: string | null;
   milestoneId: string | null;
   assigneeId: string | null;
   isRegression: boolean;
@@ -81,7 +80,6 @@ const MUTABLE_COLUMNS = [
   "state",
   "substate",
   "componentId",
-  "componentVersionId",
   "milestoneId",
   "assigneeId",
   "isRegression",
@@ -307,7 +305,6 @@ export type CreateRadarInput = {
   reproducibility?: Reproducibility;
   priority?: number;
   componentId: string;
-  componentVersionId?: string | null;
   milestoneId?: string | null;
   assigneeId?: string | null;
   isRegression?: boolean;
@@ -346,7 +343,6 @@ export async function createRadar(args: {
           state: "ANALYZE",
           substate: DEFAULT_SUBSTATE.ANALYZE,
           componentId: args.input.componentId,
-          componentVersionId: args.input.componentVersionId ?? null,
           milestoneId: args.input.milestoneId ?? null,
           originatorId: args.actorId,
           assigneeId,

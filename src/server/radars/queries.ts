@@ -26,7 +26,6 @@ const ROW_SELECT = {
   assignee: { select: { id: true, name: true, handle: true, image: true } },
   originator: { select: { id: true, name: true, handle: true, image: true } },
   component: { select: { id: true, name: true, path: true } },
-  componentVersion: { select: { id: true, name: true } },
   milestone: { select: { id: true, name: true } },
   keywords: { select: { keyword: { select: { name: true, label: true } } } },
 } satisfies Prisma.RadarSelect;
@@ -82,7 +81,6 @@ export async function boardData(
 
 const DETAIL_INCLUDE = {
   component: { select: { id: true, name: true, path: true } },
-  componentVersion: { select: { id: true, name: true } },
   milestone: { select: { id: true, name: true, status: true, targetDate: true } },
   assignee: { select: { id: true, name: true, handle: true, image: true } },
   originator: { select: { id: true, name: true, handle: true, image: true } },
@@ -145,7 +143,7 @@ export const getRadarByNumber = cache(async (number: number) => {
 
 /** Vocabulary for the filter bar and the pickers. */
 export const getOptionSources = cache(async (): Promise<OptionSources> => {
-  const [components, users, milestones, keywords, versions] = await Promise.all([
+  const [components, users, milestones, keywords] = await Promise.all([
     db.component.findMany({
       where: { isActive: true },
       orderBy: { path: "asc" },
@@ -164,11 +162,6 @@ export const getOptionSources = cache(async (): Promise<OptionSources> => {
       orderBy: { name: "asc" },
       select: { name: true, label: true },
     }),
-    db.componentVersion.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, componentId: true },
-    }),
   ]);
 
   return {
@@ -176,7 +169,6 @@ export const getOptionSources = cache(async (): Promise<OptionSources> => {
     user: users.map((u) => ({ value: u.id, label: `${u.name} (@${u.handle})` })),
     milestone: milestones.map((m) => ({ value: m.id, label: m.name })),
     keyword: keywords.map((k) => ({ value: k.name, label: k.label })),
-    componentVersion: versions.map((v) => ({ value: v.id, label: v.name })),
   };
 });
 
@@ -192,11 +184,6 @@ export const getComponentTree = cache(async () =>
       depth: true,
       parentId: true,
       defaultAssigneeId: true,
-      versions: {
-        where: { isActive: true },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: { id: true, name: true },
-      },
       _count: { select: { radars: true } },
     },
   }),

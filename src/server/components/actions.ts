@@ -123,32 +123,6 @@ export async function updateComponentAction(
   }
 }
 
-const versionSchema = z.object({
-  componentId: z.string().min(1),
-  name: z.string().trim().min(1).max(60),
-  sortOrder: z.coerce.number().int().optional(),
-});
-
-export async function createComponentVersionAction(
-  input: z.input<typeof versionSchema>,
-): Promise<ActionResult> {
-  try {
-    await requireUser();
-    const parsed = versionSchema.parse(input);
-    await db.componentVersion.create({
-      data: {
-        componentId: parsed.componentId,
-        name: parsed.name,
-        sortOrder: parsed.sortOrder ?? 0,
-      },
-    });
-    revalidatePath("/settings/components");
-    return { ok: true };
-  } catch (error) {
-    return actionError(error);
-  }
-}
-
 const keywordSchema = z.object({
   name: z
     .string()

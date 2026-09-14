@@ -59,12 +59,6 @@ function cell(row: RadarRow, id: FieldId) {
       return (
         <span className="text-muted-foreground truncate">{row.component.path}</span>
       );
-    case "componentVersion":
-      return (
-        <span className="text-muted-foreground">
-          {row.componentVersion?.name ?? "—"}
-        </span>
-      );
     case "milestone":
       return (
         <span className="text-muted-foreground">{row.milestone?.name ?? "—"}</span>

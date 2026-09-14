@@ -68,7 +68,7 @@ export type FieldDef = {
   /** Fixed vocabulary, safe to render without a round trip. */
   staticOptions?: readonly Option[];
   /** Vocabulary that lives in the database; hydrated by the page. */
-  optionSource?: "component" | "componentVersion" | "user" | "milestone" | "keyword";
+  optionSource?: "component" | "user" | "milestone" | "keyword";
   toWhere: (c: Condition, ctx: QueryContext) => Prisma.RadarWhereInput;
   orderBy?: (dir: SortDir) => Prisma.RadarOrderByWithRelationInput;
   column?: {
@@ -303,23 +303,6 @@ export const FIELDS: Record<FieldId, FieldDef> = {
           : { componentId: { in: c.values } },
     orderBy: (dir) => ({ component: { path: dir } }),
     column: { header: "Component", render: "text" },
-    auditable: true,
-  },
-
-  componentVersion: {
-    id: "componentVersion",
-    label: "Version",
-    kind: "ref",
-    ops: REF_OPS,
-    defaultOp: "in",
-    optionSource: "componentVersion",
-    toWhere: (c) =>
-      c.op === "isSet"
-        ? { componentVersionId: { not: null } }
-        : c.op === "isNotSet"
-          ? { componentVersionId: null }
-          : { componentVersionId: { in: c.values } },
-    column: { header: "Version", render: "text", className: "w-[7rem]" },
     auditable: true,
   },
 

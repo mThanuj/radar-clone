@@ -17,7 +17,7 @@ export default async function ComponentsPage() {
         <div>
           <h1 className="text-base font-semibold">Components</h1>
           <p className="text-muted-foreground text-sm">
-            Radars are filed against a component and one of its versions.
+            Radars are filed against a component.
           </p>
         </div>
         <Button
@@ -44,12 +44,6 @@ export default async function ComponentsPage() {
             >
               {component.name}
             </Link>
-
-            {component.versions.length > 0 && (
-              <span className="text-muted-foreground truncate text-xs">
-                {component.versions.map((v) => v.name).join(" · ")}
-              </span>
-            )}
 
             <span className="text-muted-foreground ml-auto text-xs tabular-nums">
               {component._count.radars}

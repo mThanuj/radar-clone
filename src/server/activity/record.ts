@@ -50,7 +50,6 @@ const AUDITED_COLUMNS = [
   ["reproducibility", "reproducibility"],
   ["priority", "priority"],
   ["componentId", "component"],
-  ["componentVersionId", "componentVersion"],
   ["milestoneId", "milestone"],
   ["assigneeId", "assignee"],
   ["duplicateOfId", "duplicateOf"],
@@ -105,7 +104,6 @@ const ENUM_LABELS: Record<string, Record<string, string>> = {
 /** Which table a FK-valued audit field points at. */
 const LOOKUPS = {
   component: "component",
-  componentVersion: "componentVersion",
   milestone: "milestone",
   assignee: "user",
   cc: "user",
@@ -137,13 +135,6 @@ async function labelFor(
         select: { path: true },
       });
       return row?.path ?? value;
-    }
-    case "componentVersion": {
-      const row = await tx.componentVersion.findUnique({
-        where: { id: value },
-        select: { name: true },
-      });
-      return row?.name ?? value;
     }
     case "milestone": {
       const row = await tx.milestone.findUnique({

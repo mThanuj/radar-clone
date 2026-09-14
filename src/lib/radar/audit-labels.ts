@@ -15,7 +15,6 @@ const EXTRA: Record<string, string> = {
   reproducibility: "Reproducibility",
   priority: "Priority",
   component: "Component",
-  componentVersion: "Version",
   milestone: "Milestone",
   assignee: "Assignee",
   duplicateOf: "Duplicate of",

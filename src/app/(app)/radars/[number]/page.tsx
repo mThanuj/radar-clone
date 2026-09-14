@@ -191,9 +191,6 @@ export default async function RadarDetailPage({
               radar={radar}
               people={people}
               components={components}
-              versions={components.flatMap((c) =>
-                c.versions.map((v) => ({ ...v, componentId: c.id })),
-              )}
               milestones={milestones}
               keywords={keywords}
             />

@@ -60,14 +60,6 @@ async function main() {
     },
   });
 
-  for (const [i, name] of ["Unspecified", "1.0"].entries()) {
-    await db.componentVersion.upsert({
-      where: { componentId_name: { componentId: root.id, name } },
-      update: {},
-      create: { componentId: root.id, name, sortOrder: i },
-    });
-  }
-
   await db.milestone.upsert({
     where: { componentId_name: { componentId: root.id, name: "1.0" } },
     update: {},
@@ -89,7 +81,6 @@ async function main() {
 
   const counts = {
     components: await db.component.count(),
-    versions: await db.componentVersion.count(),
     milestones: await db.milestone.count(),
     keywords: await db.keyword.count(),
     radars: await db.radar.count(),

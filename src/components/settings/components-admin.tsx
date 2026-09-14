@@ -6,7 +6,6 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   createComponentAction,
-  createComponentVersionAction,
   updateComponentAction,
 } from "@/server/components/actions";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ type Component = {
   depth: number;
   parentId: string | null;
   defaultAssigneeId: string | null;
-  versions: { id: string; name: string }[];
   _count: { radars: number };
 };
 
@@ -180,43 +178,6 @@ export function ComponentsAdmin({
               </div>
             )}
 
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-1">
-              {component.versions.map((version) => (
-                <span
-                  key={version.id}
-                  className="border-border rounded-md border px-1.5 py-0.5 text-xs"
-                >
-                  {version.name}
-                </span>
-              ))}
-              <form
-                className="flex items-center gap-1"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const form = new FormData(event.currentTarget);
-                  run(
-                    () =>
-                      createComponentVersionAction({
-                        componentId: component.id,
-                        name: String(form.get("version")),
-                        sortOrder: component.versions.length,
-                      }),
-                    "Version added",
-                  );
-                  event.currentTarget.reset();
-                }}
-              >
-                <Input
-                  name="version"
-                  required
-                  placeholder="Add version"
-                  className="h-6 w-28 text-xs"
-                />
-                <Button type="submit" variant="ghost" size="icon-xs" disabled={pending}>
-                  <Plus />
-                </Button>
-              </form>
-            </div>
           </li>
         ))}
       </ul>

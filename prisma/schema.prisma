@@ -268,25 +268,11 @@ model Component {
   parent          Component?         @relation("ComponentTree", fields: [parentId], references: [id], onDelete: Restrict)
   children        Component[]        @relation("ComponentTree")
   defaultAssignee User?              @relation("ComponentDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
-  versions        ComponentVersion[]
   radars          Radar[]
   milestones      Milestone[]
 
   @@unique([parentId, name])
   @@index([path])
-}
-
-model ComponentVersion {
-  id          String  @id @default(cuid())
-  componentId String
-  name        String /// "Unspecified", "1.0", "17.4"
-  sortOrder   Int     @default(0)
-  isActive    Boolean @default(true)
-
-  component Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
-  radars    Radar[]
-
-  @@unique([componentId, name])
 }
 
 model Milestone {
@@ -366,7 +352,6 @@ model Radar {
   fixedInBuild    String?
 
   componentId        String
-  componentVersionId String?
   milestoneId        String?
   originatorId       String
   assigneeId         String?
@@ -383,7 +368,6 @@ model Radar {
   lastActivityAt DateTime  @default(now())
 
   component        Component         @relation(fields: [componentId], references: [id], onDelete: Restrict)
-  componentVersion ComponentVersion? @relation(fields: [componentVersionId], references: [id], onDelete: SetNull)
   milestone        Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   originator       User              @relation("RadarOriginator", fields: [originatorId], references: [id], onDelete: Restrict)
   assignee         User?             @relation("RadarAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)

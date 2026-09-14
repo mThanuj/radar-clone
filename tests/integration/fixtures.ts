@@ -34,11 +34,6 @@ export async function createFixtures(label: string) {
     select: { id: true },
   });
 
-  const version = await db.componentVersion.create({
-    data: { componentId: component.id, name: "1.0" },
-    select: { id: true },
-  });
-
   const milestone = await db.milestone.create({
     data: { name: `${TEST_PREFIX}${suffix}`, componentId: component.id },
     select: { id: true },
@@ -49,7 +44,7 @@ export async function createFixtures(label: string) {
     select: { id: true },
   });
 
-  return { user, other, component, version, milestone, keyword };
+  return { user, other, component, milestone, keyword };
 }
 
 export async function destroyFixtures() {
@@ -59,9 +54,6 @@ export async function destroyFixtures() {
     WHERE "componentId" IN (SELECT id FROM "Component" WHERE "path" LIKE ${TEST_PREFIX + "%"})`;
   await db.$executeRaw`
     DELETE FROM "Milestone" WHERE "name" LIKE ${TEST_PREFIX + "%"}`;
-  await db.$executeRaw`
-    DELETE FROM "ComponentVersion"
-    WHERE "componentId" IN (SELECT id FROM "Component" WHERE "path" LIKE ${TEST_PREFIX + "%"})`;
   await db.$executeRaw`
     DELETE FROM "Component" WHERE "path" LIKE ${TEST_PREFIX + "%"}`;
   await db.$executeRaw`

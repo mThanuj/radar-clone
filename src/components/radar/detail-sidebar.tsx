@@ -25,14 +25,12 @@ export function DetailSidebar({
   radar,
   people,
   components,
-  versions,
   milestones,
   keywords,
 }: {
   radar: RadarDetail;
   people: { id: string; name: string; handle: string }[];
   components: { id: string; path: string }[];
-  versions: { id: string; name: string; componentId: string }[];
   milestones: { id: string; name: string }[];
   keywords: { id: string; label: string }[];
 }) {
@@ -42,12 +40,6 @@ export function DetailSidebar({
     version: radar.version,
   };
   const { patch } = useRadarPatch(ref);
-
-  // Versions belong to a component, exactly as in Radar — switching the
-  // component changes what this dropdown can offer.
-  const versionOptions = versions
-    .filter((v) => v.componentId === radar.componentId)
-    .map((v) => ({ value: v.id, label: v.name }));
 
   return (
     <div className="flex flex-col gap-0.5 text-sm">
@@ -101,17 +93,6 @@ export function DetailSidebar({
           value={radar.componentId}
           options={components.map((c) => ({ value: c.id, label: c.path }))}
           searchable
-        />
-      </FieldRow>
-
-      <FieldRow label="Version">
-        <SelectField
-          radar={ref}
-          field="componentVersionId"
-          value={radar.componentVersionId}
-          options={versionOptions}
-          allowEmpty
-          emptyLabel="Unspecified"
         />
       </FieldRow>
 
