@@ -30,7 +30,7 @@ Architecture and runbook: `README.md`. Original plan:
 /timeline                 global activity stream, day grouped, actor filter
 /milestones  /milestones/[id]   progress + burnup chart
 /components               component tree
-/settings/{profile,components,milestones,keywords}
+/settings/{profile,notifications,components,milestones}
 ```
 
 ## Verified by tests, not just by eye

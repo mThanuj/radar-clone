@@ -15,7 +15,7 @@ Prisma 7 · Neon Postgres · better-auth
 npm install
 cp .env.example .env     # then fill in your Neon URLs and a BETTER_AUTH_SECRET
 npm run db:migrate       # apply migrations
-npm run db:seed          # taxonomy only: 1 component, 1 milestone, 10 keywords
+npm run db:seed          # taxonomy only: 1 component, 1 milestone
 npm run dev              # http://localhost:3000
 ```
 
