@@ -69,15 +69,21 @@ export type DescriptionValues = Partial<
   Record<DescriptionSectionKey, string | null>
 >;
 
+/** Sections `renderCanonicalText` never emits, whatever they contain. */
+const UNCOPIED_SECTIONS: readonly DescriptionSectionKey[] = ["summary"];
+
 /**
  * The classic pasteable form. Used by "Copy as text" and by anything that
  * needs the whole description as one string.
+ *
+ * Not every section makes the cut — see `UNCOPIED_SECTIONS`.
  */
 export function renderCanonicalText(
   radar: DescriptionValues & { number: number; title: string },
 ): string {
   const parts = [`rdar://problem/${radar.number} — ${radar.title}`, ""];
   for (const section of DESCRIPTION_SECTIONS) {
+    if (UNCOPIED_SECTIONS.includes(section.key)) continue;
     const value = radar[section.key];
     if (!value?.trim()) continue;
     parts.push(section.label + ":", value.trim(), "");
