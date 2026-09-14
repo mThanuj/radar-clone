@@ -1,5 +1,5 @@
 import { NavLink } from "@/components/layout/nav-link";
-import { Bell, Boxes, Tag, Target, User } from "lucide-react";
+import { Bell, Boxes, Target, User } from "lucide-react";
 
 export default function SettingsLayout({ children }: LayoutProps<"/settings">) {
   return (
@@ -11,7 +11,6 @@ export default function SettingsLayout({ children }: LayoutProps<"/settings">) {
         <NavLink href="/settings/notifications" icon={<Bell />} label="Notifications" />
         <NavLink href="/settings/components" icon={<Boxes />} label="Components" />
         <NavLink href="/settings/milestones" icon={<Target />} label="Milestones" />
-        <NavLink href="/settings/keywords" icon={<Tag />} label="Keywords" />
       </nav>
 
       {children}

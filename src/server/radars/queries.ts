@@ -27,7 +27,6 @@ const ROW_SELECT = {
   originator: { select: { id: true, name: true, handle: true, image: true } },
   component: { select: { id: true, name: true, path: true } },
   milestone: { select: { id: true, name: true } },
-  keywords: { select: { keyword: { select: { name: true, label: true } } } },
 } satisfies Prisma.RadarSelect;
 
 export type RadarRow = Prisma.RadarGetPayload<{ select: typeof ROW_SELECT }>;
@@ -85,9 +84,6 @@ const DETAIL_INCLUDE = {
     select: { id: true, number: true, title: true, state: true, substate: true },
     orderBy: { number: "asc" },
   },
-  keywords: {
-    select: { keyword: { select: { id: true, name: true, label: true } } },
-  },
   subscribers: {
     select: {
       id: true,
@@ -139,7 +135,7 @@ export const getRadarByNumber = cache(async (number: number) => {
 
 /** Vocabulary for the filter bar and the pickers. */
 export const getOptionSources = cache(async (): Promise<OptionSources> => {
-  const [components, users, milestones, keywords] = await Promise.all([
+  const [components, users, milestones] = await Promise.all([
     db.component.findMany({
       where: { isActive: true },
       orderBy: { path: "asc" },
@@ -154,17 +150,12 @@ export const getOptionSources = cache(async (): Promise<OptionSources> => {
       orderBy: [{ status: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
-    db.keyword.findMany({
-      orderBy: { name: "asc" },
-      select: { name: true, label: true },
-    }),
   ]);
 
   return {
     component: components.map((c) => ({ value: c.id, label: c.path })),
     user: users.map((u) => ({ value: u.id, label: `${u.name} (@${u.handle})` })),
     milestone: milestones.map((m) => ({ value: m.id, label: m.name })),
-    keyword: keywords.map((k) => ({ value: k.name, label: k.label })),
   };
 });
 
@@ -190,13 +181,6 @@ export const getPeople = cache(async () =>
     where: { isActive: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true, handle: true, image: true },
-  }),
-);
-
-export const getKeywords = cache(async () =>
-  db.keyword.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, label: true },
   }),
 );
 

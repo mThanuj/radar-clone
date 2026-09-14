@@ -267,60 +267,6 @@ export function StateField({
   );
 }
 
-export function KeywordsField({
-  radar,
-  selected,
-  options,
-}: {
-  radar: RadarRef;
-  selected: { id: string; label: string }[];
-  options: { id: string; label: string }[];
-}) {
-  const { patch, pending } = useRadarPatch(radar);
-  const [open, setOpen] = useState(false);
-  const selectedIds = selected.map((k) => k.id);
-
-  async function toggle(id: string) {
-    const next = selectedIds.includes(id)
-      ? selectedIds.filter((k) => k !== id)
-      : [...selectedIds, id];
-    await patch({ keywordIds: next });
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        disabled={pending}
-        render={
-          <PickerButton>
-            {selected.length ? (
-              selected.map((k) => k.label).join(", ")
-            ) : (
-              <span className="text-muted-foreground">None</span>
-            )}
-          </PickerButton>
-        }
-      />
-      <PopoverContent align="start" className="w-56 p-1">
-        <div className="max-h-64 overflow-y-auto">
-          {options.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => toggle(option.id)}
-              className="hover:bg-muted flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm"
-            >
-              <span className="truncate">{option.label}</span>
-              {selectedIds.includes(option.id) && (
-                <Check className="size-3 shrink-0" />
-              )}
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 export function DueDateField({
   radar,
   value,

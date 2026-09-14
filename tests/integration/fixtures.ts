@@ -39,12 +39,7 @@ export async function createFixtures(label: string) {
     select: { id: true },
   });
 
-  const keyword = await db.keyword.create({
-    data: { name: `${TEST_PREFIX}${suffix}`, label: "test keyword" },
-    select: { id: true },
-  });
-
-  return { user, other, component, milestone, keyword };
+  return { user, other, component, milestone };
 }
 
 export async function destroyFixtures() {
@@ -56,8 +51,6 @@ export async function destroyFixtures() {
     DELETE FROM "Milestone" WHERE "name" LIKE ${TEST_PREFIX + "%"}`;
   await db.$executeRaw`
     DELETE FROM "Component" WHERE "path" LIKE ${TEST_PREFIX + "%"}`;
-  await db.$executeRaw`
-    DELETE FROM "Keyword" WHERE "name" LIKE ${TEST_PREFIX + "%"}`;
   await db.$executeRaw`
     DELETE FROM "user" WHERE "handle" LIKE ${TEST_PREFIX + "%"}`;
 }

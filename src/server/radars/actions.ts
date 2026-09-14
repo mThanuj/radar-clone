@@ -50,7 +50,6 @@ const createSchema = z.object({
   assigneeId: z.string().nullish(),
   isRegression: z.boolean().optional(),
   dueDate: z.coerce.date().nullish(),
-  keywordIds: z.array(z.string()).optional(),
 });
 
 export async function createRadarAction(
@@ -84,7 +83,6 @@ const patchSchema = z.object({
   assigneeId: z.string().nullish(),
   isRegression: z.boolean().optional(),
   dueDate: z.coerce.date().nullish(),
-  keywordIds: z.array(z.string()).optional(),
 });
 
 const updateSchema = z.object({

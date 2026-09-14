@@ -21,7 +21,7 @@ function ChangeLine({
     );
   }
 
-  if (change.field.startsWith("relation.") || change.field === "keyword" || change.field === "cc" || change.field === "watcher") {
+  if (change.field.startsWith("relation.") || change.field === "cc" || change.field === "watcher") {
     return change.toLabel ? (
       <li>
         added <span className="text-foreground font-medium">{label}</span>{" "}

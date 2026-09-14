@@ -42,7 +42,6 @@ export const FIELD_IDS = [
   "originator",
   "cc",
   "watching",
-  "keyword",
   "isRegression",
   "duplicateOf",
   "hasDuplicates",

@@ -33,7 +33,7 @@ import type {
  *
  * This module is isomorphic — it must stay importable from client components,
  * so the Prisma import is type-only and nothing here touches the database.
- * Option lists that need a query (components, people, milestones, keywords)
+ * Option lists that need a query (components, people, milestones)
  * declare an `optionSource` and are hydrated by the page that renders them.
  */
 
@@ -56,8 +56,7 @@ export type ColumnRender =
   | "user"
   | "text"
   | "date"
-  | "bool"
-  | "keywords";
+  | "bool";
 
 export type FieldDef = {
   id: FieldId;
@@ -68,7 +67,7 @@ export type FieldDef = {
   /** Fixed vocabulary, safe to render without a round trip. */
   staticOptions?: readonly Option[];
   /** Vocabulary that lives in the database; hydrated by the page. */
-  optionSource?: "component" | "user" | "milestone" | "keyword";
+  optionSource?: "component" | "user" | "milestone";
   toWhere: (c: Condition, ctx: QueryContext) => Prisma.RadarWhereInput;
   orderBy?: (dir: SortDir) => Prisma.RadarOrderByWithRelationInput;
   column?: {
@@ -387,24 +386,6 @@ export const FIELDS: Record<FieldId, FieldDef> = {
       const { ids } = resolveUserValues(c.values, ctx);
       return { subscribers: { some: { userId: { in: ids } } } };
     },
-  },
-
-  keyword: {
-    id: "keyword",
-    label: "Keyword",
-    kind: "ref",
-    ops: ["in", "notIn", "isSet", "isNotSet"],
-    defaultOp: "in",
-    optionSource: "keyword",
-    toWhere: (c) => {
-      if (c.op === "isSet") return { keywords: { some: {} } };
-      if (c.op === "isNotSet") return { keywords: { none: {} } };
-      const match = { keyword: { name: { in: c.values } } };
-      return c.op === "notIn"
-        ? { keywords: { none: match } }
-        : { keywords: { some: match } };
-    },
-    column: { header: "Keywords", render: "keywords" },
   },
 
   isRegression: {

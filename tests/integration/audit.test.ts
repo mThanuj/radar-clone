@@ -120,7 +120,7 @@ describe("audit trail", () => {
     }
     for (const change of changes) {
       const column = FIELD_TO_COLUMN[change.field];
-      if (!column) continue; // keyword/cc/relation entries are not columns
+      if (!column) continue; // cc/watcher/relation entries are not columns
       replayed[column] = change.toValue;
     }
 

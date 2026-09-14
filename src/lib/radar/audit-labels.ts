@@ -20,7 +20,6 @@ const EXTRA: Record<string, string> = {
   duplicateOf: "Duplicate of",
   isRegression: "Regression",
   dueDate: "Due date",
-  keyword: "Keyword",
   cc: "CC",
   watcher: "Watcher",
 };

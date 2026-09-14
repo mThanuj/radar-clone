@@ -30,17 +30,14 @@ export function CreateRadarForm({
   components,
   people,
   milestones,
-  keywords,
 }: {
   components: Component[];
   people: { id: string; name: string; handle: string }[];
   milestones: { id: string; name: string }[];
-  keywords: { id: string; label: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [componentId, setComponentId] = useState(components[0]?.id ?? "");
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
 
   const component = components.find((c) => c.id === componentId);
 
@@ -69,7 +66,6 @@ export function CreateRadarForm({
         milestoneId: text("milestoneId"),
         assigneeId: text("assigneeId"),
         isRegression: form.get("isRegression") === "on",
-        keywordIds: selectedKeywords,
       });
 
       if (result.ok) {
@@ -191,34 +187,6 @@ export function CreateRadarForm({
           </select>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label>Keywords</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {keywords.map((keyword) => {
-              const on = selectedKeywords.includes(keyword.id);
-              return (
-                <button
-                  key={keyword.id}
-                  type="button"
-                  onClick={() =>
-                    setSelectedKeywords((current) =>
-                      on
-                        ? current.filter((id) => id !== keyword.id)
-                        : [...current, keyword.id],
-                    )
-                  }
-                  className={
-                    on
-                      ? "bg-primary text-primary-foreground rounded-md px-2 py-0.5 text-xs"
-                      : "border-border hover:bg-muted rounded-md border px-2 py-0.5 text-xs"
-                  }
-                >
-                  {keyword.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       <Label className="flex w-fit items-center gap-2 text-sm font-normal">

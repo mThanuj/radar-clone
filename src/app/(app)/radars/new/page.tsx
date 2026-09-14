@@ -3,7 +3,6 @@ import { CreateRadarForm } from "@/components/radar/create-form";
 import { requireUser } from "@/server/guards";
 import {
   getComponentTree,
-  getKeywords,
   getMilestones,
   getPeople,
 } from "@/server/radars/queries";
@@ -12,11 +11,10 @@ export const metadata: Metadata = { title: "File a radar" };
 
 export default async function NewRadarPage() {
   await requireUser();
-  const [components, people, milestones, keywords] = await Promise.all([
+  const [components, people, milestones] = await Promise.all([
     getComponentTree(),
     getPeople(),
     getMilestones(),
-    getKeywords(),
   ]);
 
   return (
@@ -30,7 +28,6 @@ export default async function NewRadarPage() {
         components={components}
         people={people}
         milestones={milestones}
-        keywords={keywords}
       />
     </div>
   );

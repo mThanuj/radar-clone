@@ -19,10 +19,10 @@ import type { Tx } from "@/server/tx";
  * substate and assignee in one save reads as a single line in the feed rather
  * than three.
  *
- * FieldChange is the universal payload: scalars, relations, CC and keywords
- * all serialize into the same four columns. `*Label` is a snapshot taken at
- * write time so history stays readable after a component is moved or a
- * keyword renamed; `*Value` stays queryable, which is what makes
+ * FieldChange is the universal payload: scalars, relations and CC all
+ * serialize into the same four columns. `*Label` is a snapshot taken at
+ * write time so history stays readable after a component is moved or
+ * renamed; `*Value` stays queryable, which is what makes
  * `field='state' AND toValue='CLOSED'` a burnup data source.
  */
 
@@ -108,7 +108,6 @@ const LOOKUPS = {
   cc: "user",
   watcher: "user",
   duplicateOf: "radar",
-  keyword: "keyword",
 } as const;
 
 async function labelFor(
@@ -155,13 +154,6 @@ async function labelFor(
         select: { number: true, title: true },
       });
       return row ? `${row.number} — ${row.title}` : value;
-    }
-    case "keyword": {
-      const row = await tx.keyword.findUnique({
-        where: { id: value },
-        select: { label: true },
-      });
-      return row?.label ?? value;
     }
     default:
       return value;

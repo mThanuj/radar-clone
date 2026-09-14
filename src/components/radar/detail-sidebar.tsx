@@ -12,7 +12,6 @@ import type { RadarDetail } from "@/server/radars/queries";
 import {
   DueDateField,
   FieldRow,
-  KeywordsField,
   SelectField,
   StateField,
   useRadarPatch,
@@ -26,13 +25,11 @@ export function DetailSidebar({
   people,
   components,
   milestones,
-  keywords,
 }: {
   radar: RadarDetail;
   people: { id: string; name: string; handle: string }[];
   components: { id: string; path: string }[];
   milestones: { id: string; name: string }[];
-  keywords: { id: string; label: string }[];
 }) {
   const ref: RadarRef = {
     id: radar.id,
@@ -132,17 +129,6 @@ export function DetailSidebar({
       </FieldRow>
 
       <div className="my-2 border-t" />
-
-      <FieldRow label="Keywords">
-        <KeywordsField
-          radar={ref}
-          selected={radar.keywords.map((k) => ({
-            id: k.keyword.id,
-            label: k.keyword.label,
-          }))}
-          options={keywords}
-        />
-      </FieldRow>
 
       <FieldRow label="Due">
         <DueDateField radar={ref} value={radar.dueDate} />

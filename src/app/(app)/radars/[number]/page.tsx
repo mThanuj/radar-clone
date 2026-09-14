@@ -14,7 +14,6 @@ import { getFeed, type FeedEvent } from "@/server/activity/queries";
 import { requireUser } from "@/server/guards";
 import {
   getComponentTree,
-  getKeywords,
   getMilestones,
   getPeople,
   getRadarByNumber,
@@ -56,7 +55,6 @@ export default async function RadarDetailPage({
   const peoplePromise = getPeople();
   const componentsPromise = getComponentTree();
   const milestonesPromise = getMilestones();
-  const keywordsPromise = getKeywords();
 
   // notFound() below abandons the feed mid-flight; a handler keeps a database
   // error there from surfacing as an unhandled rejection instead of the real
@@ -66,11 +64,10 @@ export default async function RadarDetailPage({
   const radar = await getRadarByNumber(radarNumber);
   if (!radar) notFound();
 
-  const [people, components, milestones, keywords] = await Promise.all([
+  const [people, components, milestones] = await Promise.all([
     peoplePromise,
     componentsPromise,
     milestonesPromise,
-    keywordsPromise,
   ]);
 
   const values = Object.fromEntries(
@@ -192,7 +189,6 @@ export default async function RadarDetailPage({
               people={people}
               components={components}
               milestones={milestones}
-              keywords={keywords}
             />
           </div>
 

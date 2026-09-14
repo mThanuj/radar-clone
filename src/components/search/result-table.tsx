@@ -19,7 +19,6 @@ import {
 import {
   PriorityBadge,
   StateBadge,
-  ToneBadge,
   UserChip,
 } from "@/components/radar/badges";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -62,16 +61,6 @@ function cell(row: RadarRow, id: FieldId) {
     case "milestone":
       return (
         <span className="text-muted-foreground">{row.milestone?.name ?? "—"}</span>
-      );
-    case "keyword":
-      return (
-        <span className="flex flex-wrap gap-1">
-          {row.keywords.map((k) => (
-            <ToneBadge key={k.keyword.name} tone="slate">
-              {k.keyword.label}
-            </ToneBadge>
-          ))}
-        </span>
       );
     case "isRegression":
       return (

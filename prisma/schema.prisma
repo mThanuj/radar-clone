@@ -184,7 +184,6 @@ model User {
   comments             Comment[]         @relation("CommentAuthor")
   activityEvents       ActivityEvent[]   @relation("ActivityActor")
   relationsCreated     RadarRelation[]   @relation("RelationCreatedBy")
-  keywordsAdded        RadarKeyword[]    @relation("KeywordAddedBy")
   savedQueries         SavedQuery[]
   notifications        Notification[]
   notificationPrefs    NotificationPreference[]
@@ -288,30 +287,6 @@ model Milestone {
   @@index([status, targetDate])
 }
 
-model Keyword {
-  id          String   @id @default(cuid())
-  name        String   @unique /// lowercase-kebab, the stable key
-  label       String
-  description String?
-  createdAt   DateTime @default(now())
-
-  radars RadarKeyword[]
-}
-
-model RadarKeyword {
-  radarId   String
-  keywordId String
-  addedById String?
-  addedAt   DateTime @default(now())
-
-  radar   Radar   @relation(fields: [radarId], references: [id], onDelete: Cascade)
-  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
-  addedBy User?   @relation("KeywordAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
-
-  @@id([radarId, keywordId])
-  @@index([keywordId])
-}
-
 // ────────────────────────────── the radar ──────────────────────────────
 
 model Radar {
@@ -364,8 +339,6 @@ model Radar {
   assignee         User?             @relation("RadarAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   duplicateOf      Radar?            @relation("RadarDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
   duplicates       Radar[]           @relation("RadarDuplicate")
-
-  keywords      RadarKeyword[]
   subscribers   RadarSubscriber[]
   comments      Comment[]
   activity      ActivityEvent[]
@@ -459,7 +432,7 @@ model ActivityEvent {
   @@index([kind, createdAt(sort: Desc)])
 }
 
-/// Universal payload. Scalars, relations, CC and keywords all serialize here:
+/// Universal payload. Scalars, relations and CC all serialize here:
 /// field is a registry key like "state", "assigneeId", "relation.BLOCKS", "cc".
 /// *Label is a snapshot at write time so history survives renames;
 /// *Value stays queryable (field='state' AND toValue='CLOSED' drives burnup).

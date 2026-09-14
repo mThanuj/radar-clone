@@ -35,19 +35,6 @@ const db = new PrismaClient({
  * in src/lib/radar/taxonomy.ts. Everything here is upserted so the script is
  * safe to re-run.
  */
-const KEYWORDS = [
-  ["bug", "bug"],
-  ["chore", "chore"],
-  ["research", "research"],
-  ["blocked", "blocked"],
-  ["nice-to-have", "nice to have"],
-  ["perf", "perf"],
-  ["ui", "ui"],
-  ["infra", "infra"],
-  ["docs", "docs"],
-  ["spike", "spike"],
-] as const;
-
 async function main() {
   const root = await db.component.upsert({
     where: { path: "Radar" },
@@ -70,18 +57,9 @@ async function main() {
     },
   });
 
-  for (const [name, label] of KEYWORDS) {
-    await db.keyword.upsert({
-      where: { name },
-      update: {},
-      create: { name, label },
-    });
-  }
-
   const counts = {
     components: await db.component.count(),
     milestones: await db.milestone.count(),
-    keywords: await db.keyword.count(),
     radars: await db.radar.count(),
   };
   console.log("Seeded taxonomy:", counts);

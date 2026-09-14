@@ -60,8 +60,6 @@ export type RadarPatch = Partial<{
    * schema — the FK and the DUPLICATE_OF edge must move together.
    */
   duplicateOfId: string | null;
-  /** Full replacement set; the diff against current rows is computed here. */
-  keywordIds: string[];
 }>;
 
 const MUTABLE_COLUMNS = [
@@ -92,44 +90,6 @@ const sameValue = (a: unknown, b: unknown) =>
   a instanceof Date && b instanceof Date
     ? a.getTime() === b.getTime()
     : a === b;
-
-/**
- * Replace the keyword set, returning audit entries for what actually moved.
- */
-async function applyKeywords(
-  tx: Tx,
-  radarId: string,
-  actorId: string,
-  keywordIds: string[],
-): Promise<FieldChangeInput[]> {
-  const existing = await tx.radarKeyword.findMany({
-    where: { radarId },
-    select: { keywordId: true },
-  });
-  const before = new Set(existing.map((k) => k.keywordId));
-  const after = new Set(keywordIds);
-
-  const added = [...after].filter((id) => !before.has(id));
-  const removed = [...before].filter((id) => !after.has(id));
-  if (!added.length && !removed.length) return [];
-
-  if (removed.length) {
-    await tx.radarKeyword.deleteMany({
-      where: { radarId, keywordId: { in: removed } },
-    });
-  }
-  if (added.length) {
-    await tx.radarKeyword.createMany({
-      data: added.map((keywordId) => ({ radarId, keywordId, addedById: actorId })),
-      skipDuplicates: true,
-    });
-  }
-
-  return [
-    ...added.map((id) => ({ field: "keyword", toValue: id })),
-    ...removed.map((id) => ({ field: "keyword", fromValue: id })),
-  ];
-}
 
 /**
  * The core update. Everything — inline edits, the detail form, board drags,
@@ -187,15 +147,10 @@ export async function applyUpdate(
     if (data.substate === before.substate) delete data.substate;
   }
 
-  const keywordChanges =
-    args.patch.keywordIds !== undefined
-      ? await applyKeywords(tx, args.radarId, args.actorId, args.patch.keywordIds)
-      : [];
-
   const hasColumnChanges = Object.keys(data).length > 0;
   const extra = args.extraChanges ?? [];
 
-  if (!hasColumnChanges && !keywordChanges.length && !extra.length) {
+  if (!hasColumnChanges && !extra.length) {
     return before; // nothing happened; do not write an empty event
   }
 
@@ -237,7 +192,6 @@ export async function applyUpdate(
 
   const changes = await labelChanges(tx, [
     ...diffRadar(before, after),
-    ...keywordChanges,
     ...extra,
   ]);
 
@@ -307,7 +261,6 @@ export type CreateRadarInput = {
   assigneeId?: string | null;
   isRegression?: boolean;
   dueDate?: Date | null;
-  keywordIds?: string[];
 };
 
 export async function createRadar(args: {
@@ -346,14 +299,6 @@ export async function createRadar(args: {
           assigneeId,
           isRegression: args.input.isRegression ?? false,
           dueDate: args.input.dueDate ?? null,
-          keywords: args.input.keywordIds?.length
-            ? {
-                create: args.input.keywordIds.map((keywordId) => ({
-                  keywordId,
-                  addedById: args.actorId,
-                })),
-              }
-            : undefined,
         },
         select: { id: true, number: true, title: true },
       });
