@@ -46,8 +46,22 @@ export function NotificationProvider({
 }) {
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [serverCount, setServerCount] = useState(initialUnreadCount);
   const lastSeenId = useRef<string | null>(null);
   const [useFallback, setUseFallback] = useState(false);
+
+  // The stream only ever pushes new notifications, so reads have to come from
+  // the server render. `router.refresh()` — what marking read calls — re-runs
+  // the layout but deliberately preserves client state, so without this the
+  // badge keeps the count it mounted with until a full page load.
+  //
+  // Adopt the prop only when it actually changes: a refresh triggered by
+  // something unrelated re-sends the same count, and that must not stomp on a
+  // fresher number the stream has since pushed.
+  if (serverCount !== initialUnreadCount) {
+    setServerCount(initialUnreadCount);
+    setUnreadCount(initialUnreadCount);
+  }
 
   const announce = useCallback(
     (latest: LatestNotification | null, count: number) => {
