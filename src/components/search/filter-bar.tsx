@@ -207,10 +207,11 @@ function ValuePicker({
       <div className="flex items-center gap-1.5 border-b px-2">
         <Search className="text-muted-foreground size-3" />
         <input
+          aria-label="Filter values"
           value={term}
           onChange={(event) => setTerm(event.target.value)}
           placeholder="Filter…"
-          className="h-8 w-full bg-transparent text-xs outline-none"
+          className="focus-visible:ring-ring h-8 w-full bg-transparent text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset"
         />
       </div>
       <div className="max-h-56 overflow-y-auto p-1">
@@ -283,10 +284,11 @@ function AddFilter({
           <ListFilter className="text-muted-foreground size-3" />
           <input
             autoFocus
+            aria-label="Filter by field"
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder="Filter by…"
-            className="h-8 w-full bg-transparent text-xs outline-none"
+            className="focus-visible:ring-ring h-8 w-full bg-transparent text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset"
           />
         </div>
         <div className="max-h-64 overflow-y-auto p-1">

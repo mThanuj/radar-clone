@@ -141,7 +141,9 @@ export function TimelineList({
 
             <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
               {event.actor && <Avatar person={event.actor} size={18} />}
-              <span className="text-muted-foreground hidden text-xs sm:inline">
+              {/* Avatar is aria-hidden, so below sm the actor would be
+                  conveyed to nobody if this were `hidden`. */}
+              <span className="text-muted-foreground text-xs max-sm:sr-only sm:inline">
                 {event.actor?.name ?? "System"}
               </span>
             </span>
@@ -154,6 +156,10 @@ export function TimelineList({
           <Button variant="outline" size="sm" onClick={loadMore} disabled={pending}>
             {pending ? "Loading…" : "Load more"}
           </Button>
+          {/* Rows are appended in place; without this the page silently grows. */}
+          <p role="status" aria-live="polite" className="sr-only">
+            {pending ? "Loading more activity" : `${events.length} events loaded`}
+          </p>
         </div>
       )}
     </div>

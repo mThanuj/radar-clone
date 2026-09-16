@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Bell, BellOff, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import type { RadarDetail } from "@/server/radars/queries";
@@ -31,15 +31,28 @@ export function SubscribersPanel({
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
+  const heading = useRef<HTMLHeadingElement>(null);
 
   const cc = radar.subscribers.filter((s) => s.role === "CC");
   const watchers = radar.subscribers.filter((s) => s.role === "WATCHER");
 
-  function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
+  function run(
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    removed?: string,
+  ) {
     startTransition(async () => {
       const result = await fn();
-      if (result.ok) router.refresh();
-      else toast.error(result.error ?? "Something went wrong.");
+      if (!result.ok) {
+        toast.error(result.error ?? "Something went wrong.");
+        return;
+      }
+      router.refresh();
+      // Removing a row unmounts the button that was focused, dropping focus to
+      // <body>. Send it to the heading and say what happened.
+      if (removed) {
+        heading.current?.focus();
+        toast.success(`${removed} removed`);
+      }
     });
   }
 
@@ -54,7 +67,11 @@ export function SubscribersPanel({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-muted-foreground text-xs font-medium">
+        <h3
+          ref={heading}
+          tabIndex={-1}
+          className="text-muted-foreground text-xs font-medium outline-none"
+        >
           CC &amp; watchers
         </h3>
         <Popover open={open} onOpenChange={setOpen}>
@@ -68,10 +85,11 @@ export function SubscribersPanel({
           <PopoverContent align="end" className="w-60 p-0">
             <input
               autoFocus
+              aria-label="Search people"
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search people…"
-              className="h-8 w-full border-b bg-transparent px-2 text-xs outline-none"
+              className="focus-visible:ring-ring h-8 w-full border-b bg-transparent px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset"
             />
             <div className="max-h-56 overflow-y-auto p-1">
               {candidates.map((person) => (
@@ -81,6 +99,7 @@ export function SubscribersPanel({
                 >
                   <span className="min-w-0 flex-1 truncate">{person.name}</span>
                   <button
+                    aria-label={`CC ${person.name}`}
                     className="text-muted-foreground hover:text-foreground text-xs"
                     onClick={() => {
                       setOpen(false);
@@ -97,6 +116,7 @@ export function SubscribersPanel({
                     CC
                   </button>
                   <button
+                    aria-label={`Watch ${person.name}`}
                     className="text-muted-foreground hover:text-foreground text-xs"
                     onClick={() => {
                       setOpen(false);
@@ -143,7 +163,11 @@ export function SubscribersPanel({
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={subscriber.muted ? "Unmute" : "Mute"}
+                    aria-label={
+                      subscriber.muted
+                        ? `Unmute notifications for ${subscriber.user.name}`
+                        : `Mute notifications for ${subscriber.user.name}`
+                    }
                     disabled={pending}
                     onClick={() =>
                       run(() =>
@@ -161,16 +185,18 @@ export function SubscribersPanel({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Remove"
+                  aria-label={`Remove ${subscriber.user.name}`}
                   disabled={pending}
-                  className="opacity-0 group-hover:opacity-100"
+                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                   onClick={() =>
-                    run(() =>
-                      removeSubscriberAction({
-                        subscriberId: subscriber.id,
-                        radarId: radar.id,
-                        number: radar.number,
-                      }),
+                    run(
+                      () =>
+                        removeSubscriberAction({
+                          subscriberId: subscriber.id,
+                          radarId: radar.id,
+                          number: radar.number,
+                        }),
+                      subscriber.user.name,
                     )
                   }
                 >

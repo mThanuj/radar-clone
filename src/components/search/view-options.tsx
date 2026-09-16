@@ -6,9 +6,9 @@ import { COLUMN_FIELDS, FIELDS, GROUPABLE_FIELDS } from "@/lib/search/fields";
 import { radarsHref } from "@/lib/search/url";
 import { DEFAULT_COLUMNS, type FieldId, type RadarQuery } from "@/lib/search/types";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -65,18 +65,14 @@ export function ViewOptions({ query }: { query: RadarQuery }) {
         />
         <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
           {COLUMN_FIELDS.map((field) => (
-            <DropdownMenuItem
+            <DropdownMenuCheckboxItem
               key={field.id}
               closeOnClick={false}
-              onClick={() => toggleColumn(field.id)}
+              checked={query.columns.includes(field.id)}
+              onCheckedChange={() => toggleColumn(field.id)}
             >
-              <Checkbox
-                checked={query.columns.includes(field.id)}
-                aria-hidden
-                tabIndex={-1}
-              />
               {field.column?.header}
-            </DropdownMenuItem>
+            </DropdownMenuCheckboxItem>
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem

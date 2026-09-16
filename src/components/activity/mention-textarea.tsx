@@ -111,10 +111,11 @@ export function MentionTextarea({
         event.preventDefault();
         return setActive((i) => (i - 1 + matches.length) % matches.length);
       }
-      // ⌘↵ belongs to the form, even with the menu open.
+      // ⌘↵ belongs to the form, even with the menu open. Shift+Tab is
+      // "get me out of this field", not "accept the suggestion".
       if (
         (event.key === "Enter" && !event.metaKey && !event.ctrlKey) ||
-        event.key === "Tab"
+        (event.key === "Tab" && !event.shiftKey)
       ) {
         event.preventDefault();
         return choose(matches[active]);
@@ -138,6 +139,7 @@ export function MentionTextarea({
         className={className}
         role="combobox"
         aria-expanded={open}
+        aria-autocomplete="list"
         aria-controls={open ? "mention-suggestions" : undefined}
         aria-activedescendant={open ? `mention-option-${active}` : undefined}
         onChange={(event) => {
@@ -161,6 +163,9 @@ export function MentionTextarea({
                 type="button"
                 id={`mention-option-${index}`}
                 role="option"
+                // The textarea keeps focus and drives this list via
+                // aria-activedescendant, so the options must not be tab stops.
+                tabIndex={-1}
                 aria-selected={index === active}
                 // Keeps focus in the textarea, so the caret we insert at is
                 // still the caret the person was typing at.

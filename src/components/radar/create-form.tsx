@@ -23,8 +23,10 @@ type Component = {
   defaultAssigneeId: string | null;
 };
 
+// An opaque background, not `bg-transparent`: see the `option` rule in
+// globals.css for why a see-through <select> breaks its own popup.
 const selectClass =
-  "border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm";
+  "border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm";
 
 export function CreateRadarForm({
   components,
@@ -190,7 +192,13 @@ export function CreateRadarForm({
       </div>
 
       <Label className="flex w-fit items-center gap-2 text-sm font-normal">
-        <input type="checkbox" name="isRegression" className="size-3.5" />
+        {/* accent-color, or the checked fill is the OS accent — system blue on
+            macOS — which is outside the theme in both modes. */}
+        <input
+          type="checkbox"
+          name="isRegression"
+          className="accent-primary size-3.5"
+        />
         This is a regression
       </Label>
 

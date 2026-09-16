@@ -23,6 +23,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <NotificationProvider initialUnreadCount={unreadCount}>
       <div className="flex h-dvh overflow-hidden">
+        {/* The sidebar is ~15 tab stops and it precedes the content on every
+            page, so a keyboard user needs a way past it. */}
+        <a
+          href="#main"
+          className="bg-popover text-popover-foreground focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:px-3 focus:py-2 focus:text-sm focus:ring-2"
+        >
+          Skip to content
+        </a>
+
         <Sidebar user={user} />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -32,7 +41,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <SidebarContent user={user} showBrand={false} />
           </MobileNav>
 
-          <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+          <main
+            id="main"
+            tabIndex={-1}
+            className="min-w-0 flex-1 overflow-y-auto focus:outline-none"
+          >
+            {children}
+          </main>
         </div>
 
         <CommandPalette />

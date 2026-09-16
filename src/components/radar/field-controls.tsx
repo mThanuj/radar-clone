@@ -151,10 +151,11 @@ export function SelectField({
         {searchable && (
           <input
             autoFocus
+            aria-label="Search options"
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder="Search…"
-            className="h-8 w-full border-b bg-transparent px-2 text-xs outline-none"
+            className="focus-visible:ring-ring h-8 w-full border-b bg-transparent px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset"
           />
         )}
         <div className="max-h-64 overflow-y-auto p-1">
@@ -230,11 +231,16 @@ export function StateField({
       />
       <PopoverContent align="start" className="flex w-[22rem] gap-0 p-0">
         <div className="w-1/2 border-r p-1">
+          {/* Hover picks a state to preview; click commits it. Driving `target`
+              from onFocus instead meant tabbing across to the substate column
+              re-pointed it at every state on the way, so only the last one was
+              ever reachable from the keyboard. */}
           {reachable.map((s) => (
             <button
               key={s}
               onMouseEnter={() => setTarget(s)}
-              onFocus={() => setTarget(s)}
+              onClick={() => setTarget(s)}
+              aria-pressed={s === target}
               className={cn(
                 "hover:bg-muted flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm",
                 s === target && "bg-muted",
@@ -297,10 +303,11 @@ export function DueDateField({
     <div className="flex items-center gap-1">
       <input
         type="date"
+        aria-label="Due date"
         value={draft}
         disabled={pending}
         onChange={(event) => commit(event.target.value)}
-        className="hover:bg-muted rounded-md px-1.5 py-1 text-sm outline-none"
+        className="hover:bg-muted focus-visible:ring-ring rounded-md px-1.5 py-1 text-sm outline-none focus-visible:ring-2"
       />
       {draft && (
         <Button

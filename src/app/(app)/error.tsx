@@ -21,7 +21,10 @@ export default function AppError({
   const isStale = error.message.includes("changed while you were editing");
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
+    <div
+      role="alert"
+      className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center"
+    >
       <h1 className="text-base font-semibold">
         {isStale ? "This radar moved under you" : "Something broke"}
       </h1>

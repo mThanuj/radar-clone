@@ -43,8 +43,12 @@ export function CommentActions({
   function remove() {
     startTransition(async () => {
       const result = await deleteCommentAction({ commentId, number });
-      if (result.ok) router.refresh();
-      else toast.error(result.error);
+      // The comment and this button both disappear, so the toast is the only
+      // confirmation a screen-reader user gets that anything happened.
+      if (result.ok) {
+        router.refresh();
+        toast.success("Comment deleted");
+      } else toast.error(result.error);
     });
   }
 
@@ -65,6 +69,7 @@ export function CommentActions({
             <DialogTitle>Edit comment</DialogTitle>
           </DialogHeader>
           <Textarea
+            aria-label="Comment body"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             rows={8}

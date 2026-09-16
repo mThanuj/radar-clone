@@ -60,7 +60,7 @@ export function SidebarContent({
         <NotificationBell />
       </div>
 
-      <nav className="flex flex-col gap-0.5 px-1">
+      <nav aria-label="Main" className="flex flex-col gap-0.5 px-1">
         <InboxNavLink />
         <NavLink href="/radars" icon={<ListFilter />} label="Radars" exact />
         <NavLink href="/board" icon={<LayoutGrid />} label="Board" />

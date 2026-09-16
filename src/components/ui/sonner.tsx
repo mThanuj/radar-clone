@@ -5,11 +5,15 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // resolvedTheme, not theme: the provider defaults to "system", and passing
+  // that literal makes sonner re-resolve the media query itself — a second
+  // source of truth that can disagree with next-themes and paint a light
+  // toast on a dark app.
+  const { resolvedTheme } = useTheme()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedTheme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
         success: (
@@ -32,7 +36,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
+          // --border is a hairline token and disappears against the toast's
+          // own surface; a toast floats over arbitrary content and needs an
+          // edge of its own.
+          "--normal-border": "var(--input)",
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }

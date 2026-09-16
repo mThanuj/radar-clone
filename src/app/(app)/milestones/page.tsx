@@ -60,7 +60,14 @@ export default async function MilestonesPage() {
                     </span>
                   </div>
 
-                  <div className="bg-muted mt-3 h-1.5 overflow-hidden rounded-full">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={stats.percent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${milestone.name}: ${stats.closed} of ${stats.total} closed`}
+                    className="bg-muted mt-3 h-1.5 overflow-hidden rounded-full"
+                  >
                     <div
                       className="bg-foreground h-full rounded-full"
                       style={{ width: `${stats.percent}%` }}

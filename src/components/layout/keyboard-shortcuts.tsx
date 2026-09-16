@@ -16,6 +16,19 @@ const isTyping = (target: EventTarget | null) => {
 };
 
 /**
+ * Focus inside an open dialog, menu, listbox or popover belongs to that layer.
+ * Without this, arrowing through the assignee picker and pressing `c` navigates
+ * away to /radars/new — the form-control check above doesn't catch a <button>
+ * inside a menu.
+ */
+const inOverlay = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  return !!el?.closest?.(
+    '[role="dialog"],[role="menu"],[role="listbox"],[data-slot="popover-content"]',
+  );
+};
+
+/**
  * Global single-key shortcuts, Linear style. `g` starts a chord (g+r, g+b…),
  * everything else fires immediately. Never fires while you're typing.
  */
@@ -26,8 +39,9 @@ export function KeyboardShortcuts() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isTyping(event.target)) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isTyping(event.target) || inOverlay(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)
+        return;
 
       const key = event.key.toLowerCase();
 

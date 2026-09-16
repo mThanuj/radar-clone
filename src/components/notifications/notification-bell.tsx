@@ -52,9 +52,19 @@ export function NotificationBell() {
     >
       <PopoverTrigger
         render={
-          <Button variant="outline" size="icon-sm" aria-label="Notifications">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : "Notifications"
+            }
+          >
             <span className="relative">
               <Bell />
+              {/* Colour-only cue for sighted users; the count above carries it
+                  for everyone else. */}
               {unreadCount > 0 && (
                 <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" />
               )}
@@ -88,9 +98,9 @@ export function NotificationBell() {
           </Button>
         </header>
 
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto" aria-busy={pending}>
           {items.length === 0 ? (
-            <p className="text-muted-foreground p-4 text-center text-sm">
+            <p className="text-muted-foreground p-4 text-center text-sm" role="status">
               {pending ? "Loading…" : "Nothing yet."}
             </p>
           ) : (

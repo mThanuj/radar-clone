@@ -104,8 +104,8 @@ export default async function RadarDetailPage({
         />
 
         {radar.duplicateOf && (
-          <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
-            <AlertTriangle className="size-4 text-amber-600" />
+          <div className="border-border bg-muted flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+            <AlertTriangle className="text-destructive size-4" />
             <span>
               Duplicate of{" "}
               <Link

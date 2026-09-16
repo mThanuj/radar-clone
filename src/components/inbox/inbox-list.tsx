@@ -76,20 +76,29 @@ export function InboxList({ items }: { items: Item[] }) {
             >
               <button
                 aria-label={item.readAt ? "Mark unread" : "Mark read"}
+                aria-pressed={!item.readAt}
                 onClick={() => toggleRead(item.id, !item.readAt)}
-                className="shrink-0"
+                className="focus-visible:ring-ring rounded-full shrink-0 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none"
               >
                 <Circle
                   className={cn(
                     "size-2.5",
+                    // /40 put this at 1.7:1 — below the 3:1 a graphic needs,
+                    // and it is the only signal of read state as well as the
+                    // hit target for changing it.
                     item.readAt
-                      ? "text-muted-foreground/40"
+                      ? "text-muted-foreground"
                       : "fill-primary text-primary",
                   )}
                 />
               </button>
 
               <span className="text-muted-foreground hidden w-32 shrink-0 text-xs sm:block">
+                {REASONS[item.reason].label}
+              </span>
+              {/* The column is dropped below sm for space, but the reason is
+                  the only thing saying why this radar is in your inbox. */}
+              <span className="sr-only sm:hidden">
                 {REASONS[item.reason].label}
               </span>
 

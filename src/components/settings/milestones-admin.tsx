@@ -22,8 +22,10 @@ type Milestone = {
   _count: { radars: number };
 };
 
+// An opaque background, not `bg-transparent`: see the `option` rule in
+// globals.css for why a see-through <select> breaks its own popup.
 const selectClass =
-  "border-input h-8 rounded-md border bg-transparent px-2 text-sm";
+  "border-input bg-background text-foreground h-8 rounded-md border px-2 text-sm";
 
 export function MilestonesAdmin({
   milestones,
@@ -135,14 +137,18 @@ export function MilestonesAdmin({
                   save(new FormData(event.currentTarget), milestone.id);
                 }}
               >
+                {/* aria-label rather than htmlFor/id: this form is rendered
+                    once per row, so ids would collide. */}
                 <Input
                   name="name"
+                  aria-label="Milestone name"
                   defaultValue={milestone.name}
                   required
                   className="h-8 w-32 text-sm"
                 />
                 <select
                   name="status"
+                  aria-label="Status"
                   defaultValue={milestone.status}
                   className={selectClass}
                 >
@@ -155,6 +161,7 @@ export function MilestonesAdmin({
                 <Input
                   name="targetDate"
                   type="date"
+                  aria-label="Target date"
                   defaultValue={
                     milestone.targetDate
                       ? new Date(milestone.targetDate).toISOString().slice(0, 10)
@@ -164,6 +171,7 @@ export function MilestonesAdmin({
                 />
                 <select
                   name="componentId"
+                  aria-label="Component"
                   defaultValue={milestone.component?.id ?? ""}
                   className={selectClass}
                 >
@@ -176,6 +184,7 @@ export function MilestonesAdmin({
                 </select>
                 <Input
                   name="description"
+                  aria-label="Description"
                   defaultValue={milestone.description ?? ""}
                   placeholder="Description"
                   className="h-8 w-48 text-sm"

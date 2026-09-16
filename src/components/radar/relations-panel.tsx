@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import type { RelationType } from "@/generated/prisma/enums";
@@ -29,6 +29,7 @@ export function RelationsPanel({ radar }: { radar: RadarDetail }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<RelationType>("RELATED_TO");
+  const heading = useRef<HTMLHeadingElement>(null);
 
   // Edges are stored once; the inverse label is what makes the other side
   // read correctly without a mirrored row.
@@ -74,15 +75,25 @@ export function RelationsPanel({ radar }: { radar: RadarDetail }) {
         radarId: radar.id,
         number: radar.number,
       });
-      if (result.ok) router.refresh();
-      else toast.error(result.error);
+      if (result.ok) {
+        router.refresh();
+        // The row — and the button that was focused — is gone; without this
+        // focus falls to <body> and the next Tab restarts at the top of the
+        // document. The toast is what announces the change.
+        heading.current?.focus();
+        toast.success("Relationship removed");
+      } else toast.error(result.error);
     });
   }
 
   return (
     <section className="rounded-lg border">
       <header className="flex items-center justify-between border-b px-4 py-2">
-        <h2 className="text-sm font-medium">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="text-sm font-medium outline-none"
+        >
           Relationships
           {rows.length > 0 && (
             <span className="text-muted-foreground ml-1.5 text-xs">
@@ -102,9 +113,10 @@ export function RelationsPanel({ radar }: { radar: RadarDetail }) {
           <PopoverContent align="end" className="w-72 p-3">
             <form onSubmit={add} className="flex flex-col gap-2">
               <select
+                aria-label="Relationship type"
                 value={type}
                 onChange={(event) => setType(event.target.value as RelationType)}
-                className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                className="border-input bg-popover text-popover-foreground h-8 rounded-md border px-2 text-sm"
               >
                 {RELATION_TYPES.map((value) => (
                   <option key={value} value={value}>
@@ -114,6 +126,7 @@ export function RelationsPanel({ radar }: { radar: RadarDetail }) {
               </select>
               <Input
                 name="number"
+                aria-label="Radar number"
                 inputMode="numeric"
                 placeholder="Radar number, e.g. 100000042"
                 className="h-8 text-sm"
@@ -154,7 +167,7 @@ export function RelationsPanel({ radar }: { radar: RadarDetail }) {
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Remove relationship"
+                aria-label={`Remove relationship to ${row.other.number}`}
                 onClick={() => remove(row.id)}
                 disabled={pending}
               >

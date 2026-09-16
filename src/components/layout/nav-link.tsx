@@ -23,6 +23,7 @@ export function NavLink({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-7 items-center gap-2 rounded-md px-2 text-sm transition-colors",
         active
@@ -33,8 +34,16 @@ export function NavLink({
       <span className="[&>svg]:size-4">{icon}</span>
       <span className="flex-1 truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-[0.65rem] font-semibold tabular-nums">
-          {badge > 99 ? "99+" : badge}
+        // The count is driven by SSE and changes under the user; without a
+        // live region it mutates silently, and a bare "3" next to "Inbox"
+        // doesn't say what it counts.
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="bg-primary text-primary-foreground rounded-full px-1.5 text-[0.65rem] font-semibold tabular-nums"
+        >
+          <span className="sr-only">{badge} unread</span>
+          <span aria-hidden="true">{badge > 99 ? "99+" : badge}</span>
         </span>
       )}
     </Link>
@@ -62,6 +71,7 @@ export function QueueLink({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "group flex h-7 items-center gap-2 rounded-md px-2 text-sm transition-colors",
         active
@@ -71,7 +81,9 @@ export function QueueLink({
     >
       <span className="flex-1 truncate">{name}</span>
       <span className="text-muted-foreground text-xs tabular-nums">
+        <span className="sr-only">, </span>
         {count}
+        <span className="sr-only"> radars</span>
       </span>
     </Link>
   );

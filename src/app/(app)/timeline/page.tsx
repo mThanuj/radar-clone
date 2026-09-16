@@ -32,6 +32,7 @@ export default async function TimelinePage({
         <div className="flex flex-wrap gap-1.5">
           <Link
             href="/timeline"
+            aria-current={actorId ? undefined : "true"}
             className={
               actorId
                 ? "text-muted-foreground hover:text-foreground rounded-md border px-2 py-1 text-xs"
@@ -44,6 +45,7 @@ export default async function TimelinePage({
             <Link
               key={actor.id}
               href={`/timeline?actor=${actor.id}`}
+              aria-current={actorId === actor.id ? "true" : undefined}
               className={
                 actorId === actor.id
                   ? "bg-muted rounded-md border px-2 py-1 text-xs font-medium"

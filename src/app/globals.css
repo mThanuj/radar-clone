@@ -70,9 +70,14 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* --border draws decorative hairlines and may stay faint. --input draws the
+     only visible edge of a text field, a select or a checkbox, and --ring is
+     the focus indicator; WCAG 1.4.11 and 2.4.11 want both at 3:1 against the
+     surface behind them. At the shadcn defaults (0.922 / 0.708) they measured
+     1.26:1 and 2.59:1 — an input on a white card had no perceptible boundary. */
   --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --input: oklch(0.64 0 0);
+  --ring: oklch(0.55 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -86,7 +91,7 @@
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.55 0 0);
 }
 
 .dark {
@@ -106,33 +111,62 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
+  /* 10% white over a near-black page is 1.25:1 — structurally invisible. See
+     the note in :root; these are the dark-mode counterparts. */
+  --border: oklch(1 0 0 / 20%);
+  --input: oklch(1 0 0 / 35%);
+  --ring: oklch(0.62 0 0);
+  /* The ramp has to run the other way here: on a dark surface the light end is
+     the readable one. Copying :root verbatim left --chart-5 at 1.28:1. */
+  --chart-1: oklch(0.269 0 0);
+  --chart-2: oklch(0.371 0 0);
   --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-4: oklch(0.556 0 0);
+  --chart-5: oklch(0.87 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-border: oklch(1 0 0 / 20%);
+  --sidebar-ring: oklch(0.62 0 0);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+  /* color-scheme (above) covers the widgets the OS draws, but Chromium on
+     Windows/Linux and Firefox everywhere paint the <option> list themselves,
+     seeded from the select's own computed background. A select left
+     `bg-transparent` gives them nothing to seed from, so they fall back to a
+     light panel while the options inherit our near-white --foreground — which
+     is the "dropdown text is invisible in dark mode" report. Naming the pair
+     explicitly is what those engines actually read. */
+  option,
+  optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+  /* Nothing in the app conveys meaning through motion, so honouring the OS
+     setting costs nothing. Without this every popover zoom, toast slide and
+     skeleton pulse still runs. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 /* Typography for rendered markdown: descriptions, comments, milestone notes.

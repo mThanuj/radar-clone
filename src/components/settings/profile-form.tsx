@@ -76,8 +76,8 @@ export function ProfileForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Email</Label>
-        <Input value={user.email} disabled readOnly />
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" value={user.email} disabled readOnly />
       </div>
 
       <Button type="submit" disabled={pending} className="w-fit">

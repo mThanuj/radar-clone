@@ -63,7 +63,13 @@ export function DescriptionPanel({
       <section className="rounded-lg border">
         <header className="flex items-center justify-between border-b px-4 py-2">
           <h2 className="text-sm font-medium">Description</h2>
-          <Button variant="ghost" size="xs" onClick={() => setEditing(true)}>
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-expanded={false}
+            aria-controls="description-editor"
+            onClick={() => setEditing(true)}
+          >
             <Pencil /> Edit
           </Button>
         </header>
@@ -76,11 +82,21 @@ export function DescriptionPanel({
     <section className="rounded-lg border">
       <header className="flex items-center justify-between border-b px-4 py-2">
         <h2 className="text-sm font-medium">Editing description</h2>
-        <Button variant="ghost" size="xs" onClick={() => setEditing(false)}>
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-expanded
+          aria-controls="description-editor"
+          onClick={() => setEditing(false)}
+        >
           <X /> Cancel
         </Button>
       </header>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 p-4">
+      <form
+        id="description-editor"
+        onSubmit={onSubmit}
+        className="flex flex-col gap-4 p-4"
+      >
         {DESCRIPTION_SECTIONS.map((section) => (
           <div key={section.key} className="flex flex-col gap-1.5">
             <Label htmlFor={section.key} className="text-xs">

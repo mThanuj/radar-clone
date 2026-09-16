@@ -137,6 +137,7 @@ export function DetailSidebar({
       <FieldRow label="Regression">
         <span className="px-1.5 py-1">
           <Switch
+            aria-label="Regression"
             checked={radar.isRegression}
             onCheckedChange={(checked: boolean) =>
               patch({ isRegression: checked })

@@ -23,19 +23,24 @@ const TONE_CLASS: Record<Tone, string> = {
   slate: "bg-slate-500/10 text-slate-600 ring-slate-500/20 dark:text-slate-300",
   blue: "bg-blue-500/10 text-blue-700 ring-blue-500/20 dark:text-blue-300",
   violet: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-300",
-  amber: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-300",
+  amber: "bg-amber-500/10 text-amber-800 ring-amber-500/20 dark:text-amber-300",
   red: "bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-300",
-  green: "bg-green-500/10 text-green-700 ring-green-500/20 dark:text-green-300",
+  green: "bg-green-500/10 text-green-800 ring-green-500/20 dark:text-green-300",
 };
 
+/**
+ * A -400/-500 dot on a 10%-tinted white sits around 2:1 — under the 3:1 that
+ * non-text graphics need. On the near-black dark tint the same values have
+ * plenty of headroom, so only the light shade moves.
+ */
 const DOT_CLASS: Record<Tone, string> = {
-  gray: "bg-neutral-400",
-  slate: "bg-slate-400",
+  gray: "bg-neutral-500 dark:bg-neutral-400",
+  slate: "bg-slate-500 dark:bg-slate-400",
   blue: "bg-blue-500",
   violet: "bg-violet-500",
-  amber: "bg-amber-500",
+  amber: "bg-amber-700 dark:bg-amber-500",
   red: "bg-red-500",
-  green: "bg-green-500",
+  green: "bg-green-700 dark:bg-green-500",
 };
 
 export function ToneBadge({
@@ -130,7 +135,7 @@ export function Avatar({
     />
   ) : (
     <span
-      className="bg-muted text-muted-foreground inline-flex shrink-0 items-center justify-center rounded-full font-medium"
+      className="bg-muted text-foreground/70 inline-flex shrink-0 items-center justify-center rounded-full font-medium"
       style={{ width: size, height: size, fontSize: size * 0.42 }}
       aria-hidden
     >

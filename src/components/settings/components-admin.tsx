@@ -22,8 +22,10 @@ type Component = {
   _count: { radars: number };
 };
 
+// An opaque background, not `bg-transparent`: see the `option` rule in
+// globals.css for why a see-through <select> breaks its own popup.
 const selectClass =
-  "border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm";
+  "border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm";
 
 export function ComponentsAdmin({
   components,
@@ -126,14 +128,18 @@ export function ComponentsAdmin({
                   );
                 }}
               >
+                {/* aria-label rather than htmlFor/id: this form is rendered
+                    once per row, so ids would collide. */}
                 <Input
                   name="name"
+                  aria-label="Component name"
                   defaultValue={component.name}
                   required
                   className="h-8 w-48 text-sm"
                 />
                 <select
                   name="defaultAssigneeId"
+                  aria-label="Default assignee"
                   defaultValue={component.defaultAssigneeId ?? ""}
                   className={`${selectClass} w-56`}
                 >

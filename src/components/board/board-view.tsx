@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useDraggable,
   useDroppable,
@@ -15,6 +16,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
+import { GripVertical } from "lucide-react";
 import { cn } from "cn";
 import type { RadarState } from "@/generated/prisma/enums";
 import { TRANSITIONS } from "@/lib/radar/state-machine";
@@ -25,7 +27,15 @@ import { PriorityBadge, UserChip } from "@/components/radar/badges";
 
 type Column = { state: RadarState; rows: RadarRow[]; total: number };
 
-function Card({ row, dragging }: { row: RadarRow; dragging?: boolean }) {
+function Card({
+  row,
+  dragging,
+  handle,
+}: {
+  row: RadarRow;
+  dragging?: boolean;
+  handle?: React.ReactNode;
+}) {
   return (
     <div
       className={cn(
@@ -34,6 +44,7 @@ function Card({ row, dragging }: { row: RadarRow; dragging?: boolean }) {
       )}
     >
       <div className="flex items-center gap-2">
+        {handle}
         <span className="text-muted-foreground font-mono text-xs tabular-nums">
           {row.number}
         </span>
@@ -61,13 +72,38 @@ function Card({ row, dragging }: { row: RadarRow; dragging?: boolean }) {
 }
 
 function DraggableCard({ row }: { row: RadarRow }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    isDragging,
+  } = useDraggable({
     id: row.id,
     data: { row },
   });
+  // The listeners live on a handle, not the card. Spread over the whole card
+  // they made it a role="button" with the title <Link> nested inside it, and
+  // dnd-kit's "press space to pick up" instructions were attached to something
+  // that had no keyboard sensor behind it.
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes}>
-      <Card row={row} dragging={isDragging} />
+    <div ref={setNodeRef}>
+      <Card
+        row={row}
+        dragging={isDragging}
+        handle={
+          <button
+            ref={setActivatorNodeRef}
+            type="button"
+            aria-label={`Move radar ${row.number}`}
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 cursor-grab rounded focus-visible:ring-2 focus-visible:outline-none"
+            {...listeners}
+            {...attributes}
+          >
+            <GripVertical className="size-3.5" />
+          </button>
+        }
+      />
     </div>
   );
 }
@@ -115,6 +151,7 @@ export function BoardView({ columns }: { columns: Column[] }) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor),
   );
 
   function onDragStart(event: DragStartEvent) {
@@ -165,12 +202,30 @@ export function BoardView({ columns }: { columns: Column[] }) {
       .filter((row) => (moved[row.id] ?? row.state) === column.state),
   }));
 
+  const describe = (id: string | number) =>
+    columns.flatMap((c) => c.rows).find((row) => row.id === id)?.number ?? id;
+
   return (
     <DndContext
       sensors={sensors}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActive(null)}
+      accessibility={{
+        announcements: {
+          onDragStart: ({ active }) =>
+            `Picked up radar ${describe(active.id)}.`,
+          onDragOver: ({ over }) =>
+            over
+              ? `Over ${STATE_LABEL[over.id as RadarState]}.`
+              : "No longer over a column.",
+          onDragEnd: ({ over }) =>
+            over
+              ? `Dropped in ${STATE_LABEL[over.id as RadarState]}.`
+              : "Dropped outside a column; nothing moved.",
+          onDragCancel: () => "Move cancelled.",
+        },
+      }}
     >
       <div className="flex gap-3 overflow-x-auto pb-4">
         {display.map((column) => (

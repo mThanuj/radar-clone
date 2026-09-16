@@ -193,10 +193,10 @@ export function ResultTable({
       </ul>
 
       <div className="hidden overflow-x-auto rounded-lg border md:block">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" aria-label={`Radars, ${total} results`}>
           <thead className="bg-muted/40 text-muted-foreground border-b text-xs">
             <tr>
-              <th className="w-9 px-2 py-2">
+              <th scope="col" className="w-9 px-2 py-2">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={toggleAll}
@@ -209,6 +209,16 @@ export function ResultTable({
                 return (
                   <th
                     key={id}
+                    scope="col"
+                    aria-sort={
+                      !field.orderBy
+                        ? undefined
+                        : sort
+                          ? sort.dir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                    }
                     className={cn(
                       "px-2 py-2 text-left font-medium",
                       field.column?.className,
@@ -216,6 +226,7 @@ export function ResultTable({
                   >
                     {field.orderBy ? (
                       <button
+                        aria-label={`Sort by ${field.column?.header}`}
                         onClick={() => router.push(radarsHref(withSort(query, id)))}
                         className="hover:text-foreground inline-flex items-center gap-1"
                       >
@@ -273,12 +284,19 @@ export function ResultTable({
                           FIELDS[id].column?.className,
                         )}
                       >
-                        <Link
-                          href={`/radars/${row.number}`}
-                          className="block truncate"
-                        >
-                          {cell(row, id)}
-                        </Link>
+                        {/* One link per row, not one per cell. Linking every
+                            cell gave a screen reader eight identical targets
+                            per radar, several of them named "—". */}
+                        {id === "number" || id === "title" ? (
+                          <Link
+                            href={`/radars/${row.number}`}
+                            className="block truncate"
+                          >
+                            {cell(row, id)}
+                          </Link>
+                        ) : (
+                          <span className="block truncate">{cell(row, id)}</span>
+                        )}
                       </td>
                     ))}
                   </tr>

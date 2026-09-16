@@ -86,6 +86,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               autoComplete="email"
               required
               placeholder="you@example.com"
+              aria-invalid={!!error}
+              aria-describedby={error ? "auth-error" : undefined}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -97,6 +99,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               autoComplete={isSignUp ? "new-password" : "current-password"}
               required
               minLength={8}
+              aria-invalid={!!error}
+              aria-describedby={error ? "auth-error" : undefined}
             />
             {isSignUp && (
               <p className="text-muted-foreground text-xs">
@@ -106,7 +110,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </div>
 
           {error && (
-            <p className="text-destructive text-sm" role="alert">
+            <p id="auth-error" className="text-destructive text-sm" role="alert">
               {error}
             </p>
           )}

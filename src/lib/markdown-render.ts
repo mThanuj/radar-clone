@@ -90,9 +90,13 @@ function getHighlightProcessor() {
       ]);
 
     const highlighter = await createHighlighterCore({
+      // The high-contrast pair, not plain github-light/dark. We render code on
+      // --muted rather than on the theme's own background, and github-dark's
+      // comment token (#6a737d) lands at 3.14:1 there — under AA, on the text
+      // people read most slowly. These clear 4.5:1 for every token.
       themes: [
-        import("shiki/themes/github-light.mjs"),
-        import("shiki/themes/github-dark.mjs"),
+        import("shiki/themes/github-light-high-contrast.mjs"),
+        import("shiki/themes/github-dark-high-contrast.mjs"),
       ],
       langs: LANGS.map((load) => load()),
       // The JS engine skips compiling the Oniguruma WASM. Shiki flags a few
@@ -103,7 +107,10 @@ function getHighlightProcessor() {
 
     return basePipeline()
       .use(rehype.default, highlighter as Parameters<typeof rehype.default>[0], {
-        themes: { light: "github-light", dark: "github-dark" },
+        themes: {
+          light: "github-light-high-contrast",
+          dark: "github-dark-high-contrast",
+        },
         defaultColor: false,
         // A language we don't ship must not take the page down with it.
         fallbackLanguage: "plaintext",

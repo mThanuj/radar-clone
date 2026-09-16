@@ -67,7 +67,9 @@ export function SaveQueryDialog({ query }: { query: RadarQuery }) {
               <Input id="name" name="name" required autoFocus maxLength={80} />
             </div>
             <Label className="flex items-center gap-2 text-sm font-normal">
-              <Checkbox name="pin" defaultChecked />
+              {/* Base UI renders a <span role="checkbox">, which a wrapping
+                  <label> does not name. */}
+              <Checkbox name="pin" defaultChecked aria-label="Pin to the sidebar" />
               Pin to the sidebar
             </Label>
             <p className="text-muted-foreground font-mono text-xs break-all">
