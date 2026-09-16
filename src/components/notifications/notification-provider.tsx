@@ -20,11 +20,26 @@ type LatestNotification = {
   radarTitle: string;
 };
 
-const NotificationContext = createContext<{ unreadCount: number }>({
+const NotificationContext = createContext<{
+  unreadCount: number;
+  markRead: (count?: number) => void;
+}>({
   unreadCount: 0,
+  markRead: () => {},
 });
 
 export const useUnreadCount = () => useContext(NotificationContext).unreadCount;
+
+/**
+ * Drop the badge by `count` right now, without waiting for a server render.
+ *
+ * For reads that happen *while navigating away*: /inbox and a radar page share
+ * the app layout, and the App Router does not re-render a shared layout on
+ * navigation between them — so the badge would otherwise keep the count it had
+ * until something forced a refresh. A later server render still wins, so this
+ * being slightly early or slightly wrong is self-correcting.
+ */
+export const useMarkRead = () => useContext(NotificationContext).markRead;
 
 const POLL_MS = 20_000;
 const MAX_STREAM_FAILURES = 3;
@@ -62,6 +77,10 @@ export function NotificationProvider({
     setServerCount(initialUnreadCount);
     setUnreadCount(initialUnreadCount);
   }
+
+  const markRead = useCallback((count = 1) => {
+    setUnreadCount((current) => Math.max(0, current - count));
+  }, []);
 
   const announce = useCallback(
     (latest: LatestNotification | null, count: number) => {
@@ -164,6 +183,8 @@ export function NotificationProvider({
   }, [announce, useFallback]);
 
   return (
-    <NotificationContext value={{ unreadCount }}>{children}</NotificationContext>
+    <NotificationContext value={{ unreadCount, markRead }}>
+      {children}
+    </NotificationContext>
   );
 }

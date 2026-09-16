@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { CheckCheck, Circle } from "lucide-react";
 import { cn } from "cn";
 import type { NotificationReason, RadarState, RadarSubstate } from "@/generated/prisma/enums";
@@ -12,6 +12,7 @@ import {
   markAllReadAction,
   setNotificationReadAction,
 } from "@/server/notifications/actions";
+import { useMarkRead } from "@/components/notifications/notification-provider";
 import { PriorityBadge, StateBadge } from "@/components/radar/badges";
 import { Button } from "@/components/ui/button";
 
@@ -31,12 +32,37 @@ type Item = {
 
 export function InboxList({ items }: { items: Item[] }) {
   const router = useRouter();
+  const markReadInBadge = useMarkRead();
   const [pending, startTransition] = useTransition();
+  // Rows marked read by opening them. Kept locally because opening a radar
+  // navigates away from this page: there is no server render to wait for, and
+  // on a ⌘-click — which stays here — the dot has to settle anyway.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
+
+  const isRead = (item: Item) => Boolean(item.readAt) || opened.has(item.id);
 
   function toggleRead(id: string, read: boolean) {
+    // Hand this row back to the server value, whichever way it is going —
+    // otherwise an opened row could never be marked unread again.
+    setOpened((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
     startTransition(async () => {
       await setNotificationReadAction({ id, read });
       router.refresh();
+    });
+  }
+
+  /** Opening a notification is reading it. */
+  function open(item: Item) {
+    if (isRead(item)) return;
+    setOpened((current) => new Set(current).add(item.id));
+    markReadInBadge();
+    startTransition(async () => {
+      await setNotificationReadAction({ id: item.id, read: true });
     });
   }
 
@@ -47,7 +73,7 @@ export function InboxList({ items }: { items: Item[] }) {
         <Button
           variant="outline"
           size="xs"
-          disabled={pending || items.every((i) => i.readAt)}
+          disabled={pending || items.every(isRead)}
           onClick={() =>
             startTransition(async () => {
               await markAllReadAction();
@@ -71,13 +97,13 @@ export function InboxList({ items }: { items: Item[] }) {
               key={item.id}
               className={cn(
                 "flex items-center gap-3 px-3 py-2",
-                !item.readAt && "bg-primary/5",
+                !isRead(item) && "bg-primary/5",
               )}
             >
               <button
-                aria-label={item.readAt ? "Mark unread" : "Mark read"}
-                aria-pressed={!item.readAt}
-                onClick={() => toggleRead(item.id, !item.readAt)}
+                aria-label={isRead(item) ? "Mark unread" : "Mark read"}
+                aria-pressed={!isRead(item)}
+                onClick={() => toggleRead(item.id, !isRead(item))}
                 className="focus-visible:ring-ring rounded-full shrink-0 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none"
               >
                 <Circle
@@ -86,7 +112,7 @@ export function InboxList({ items }: { items: Item[] }) {
                     // /40 put this at 1.7:1 — below the 3:1 a graphic needs,
                     // and it is the only signal of read state as well as the
                     // hit target for changing it.
-                    item.readAt
+                    isRead(item)
                       ? "text-muted-foreground"
                       : "fill-primary text-primary",
                   )}
@@ -104,6 +130,7 @@ export function InboxList({ items }: { items: Item[] }) {
 
               <Link
                 href={`/radars/${item.radar.number}`}
+                onClick={() => open(item)}
                 className="min-w-0 flex-1 truncate text-sm hover:underline"
               >
                 <span className="text-muted-foreground font-mono text-xs tabular-nums">
