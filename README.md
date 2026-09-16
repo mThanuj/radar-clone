@@ -106,6 +106,32 @@ category toggle and their global mail switch. The handle `all` is reserved so
 no account can shadow it. The composer names the number of people before you
 send.
 
+## Chat
+
+Each radar has a private chat beside its activity feed, for the people actually
+working it: comments are the public technical record, chat is the short exchange
+around it. It notifies nobody — no inbox row, no email, no settings toggle, just
+an unread badge on the tab and a toast if the message lands while you are
+elsewhere. It is also not searchable, deliberately: the search layer has no
+concept of per-row authorization and adding one for a single table is how leaks
+happen.
+
+Who can read it: the originator, the assignee, anyone helping, and any admin.
+Membership is evaluated live on every read and write, so handing a radar on
+hands the conversation with it.
+
+This is the **only** access-controlled surface in the app — any signed-in user
+can otherwise read, comment on, reassign or close any radar. The rule lives in
+one pure function (`src/lib/chat/membership.ts`) behind one gate
+(`src/server/chat/access.ts`), and every chat read takes the `ChatAccess` that
+gate returns, so a query cannot forget to authorize itself. There are four call
+sites; a fifth needs a test.
+
+Messages ride the existing per-user realtime channels rather than a channel of
+their own — the SSE route derives the channel from the session, which is what
+makes "you can only receive your own" structural rather than a check someone has
+to remember.
+
 Email goes through an outbox written in the same transaction as the
 notification, so mail can neither be lost nor sent for a change that rolled
 back. Sending happens in `after()` so it never delays a save, and because

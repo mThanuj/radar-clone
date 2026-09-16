@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -40,6 +41,49 @@ export const useUnreadCount = () => useContext(NotificationContext).unreadCount;
  * being slightly early or slightly wrong is self-correcting.
  */
 export const useMarkRead = () => useContext(NotificationContext).markRead;
+
+/**
+ * Radar chat rides the same stream.
+ *
+ * A second context rather than widening the first, so the notification badge's
+ * consumers keep the API they have. The provider owns the one EventSource in
+ * the app, so anything live has to be routed from here — a chat panel opening
+ * its own stream would be a second long-lived serverless invocation per tab.
+ */
+export type ChatFrame =
+  | {
+      type: "chat";
+      radarId: string;
+      radarNumber: number;
+      message: {
+        id: string;
+        body: string;
+        createdAt: string;
+        author: {
+          id: string;
+          name: string;
+          handle: string;
+          image: string | null;
+        };
+      };
+    }
+  | {
+      type: "chat-removed";
+      radarId: string;
+      radarNumber: number;
+      messageId: string;
+    };
+
+type ChatListener = (frame: ChatFrame) => void;
+
+const ChatStreamContext = createContext<{
+  /** Returns its own unsubscribe, so an effect can `return subscribe(...)`. */
+  subscribe: (radarId: string, listener: ChatListener) => () => void;
+  /** True once the stream has given up: no chat frames are arriving. */
+  degraded: boolean;
+}>({ subscribe: () => () => {}, degraded: false });
+
+export const useChatStream = () => useContext(ChatStreamContext);
 
 const POLL_MS = 20_000;
 const MAX_STREAM_FAILURES = 3;
@@ -81,6 +125,49 @@ export function NotificationProvider({
   const markRead = useCallback((count = 1) => {
     setUnreadCount((current) => Math.max(0, current - count));
   }, []);
+
+  // --- Chat routing ------------------------------------------------------
+  const chatListeners = useRef(new Map<string, Set<ChatListener>>());
+
+  const subscribeChat = useCallback(
+    (radarId: string, listener: ChatListener) => {
+      const listeners = chatListeners.current.get(radarId) ?? new Set();
+      listeners.add(listener);
+      chatListeners.current.set(radarId, listeners);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) chatListeners.current.delete(radarId);
+      };
+    },
+    [],
+  );
+
+  const deliverChat = useCallback(
+    (frame: ChatFrame) => {
+      const listeners = chatListeners.current.get(frame.radarId);
+      if (listeners?.size) {
+        for (const listener of listeners) listener(frame);
+        return;
+      }
+
+      // Nobody has that radar's chat open. A panel that *is* mounted shows its
+      // own badge, so toasting as well would be saying it twice.
+      if (frame.type !== "chat") return;
+      toast(`Chat · ${frame.radarNumber}`, {
+        description: `${frame.message.author.name}: ${frame.message.body}`,
+        action: {
+          label: "Open",
+          onClick: () => router.push(`/radars/${frame.radarNumber}?chat=1`),
+        },
+      });
+    },
+    [router],
+  );
+
+  const chatStream = useMemo(
+    () => ({ subscribe: subscribeChat, degraded: useFallback }),
+    [subscribeChat, useFallback],
+  );
 
   const announce = useCallback(
     (latest: LatestNotification | null, count: number) => {
@@ -127,6 +214,11 @@ export function NotificationProvider({
             setUnreadCount(payload.unreadCount);
           } else if (payload.type === "notification") {
             announce(payload.notification, payload.unreadCount);
+          } else if (
+            payload.type === "chat" ||
+            payload.type === "chat-removed"
+          ) {
+            deliverChat(payload as ChatFrame);
           }
         } catch {
           // Ignore frames we can't parse rather than tearing down the stream.
@@ -151,7 +243,7 @@ export function NotificationProvider({
       if (reconnect) clearTimeout(reconnect);
       source?.close();
     };
-  }, [announce, useFallback]);
+  }, [announce, deliverChat, useFallback]);
 
   // --- Polling fallback --------------------------------------------------
   useEffect(() => {
@@ -184,7 +276,7 @@ export function NotificationProvider({
 
   return (
     <NotificationContext value={{ unreadCount, markRead }}>
-      {children}
+      <ChatStreamContext value={chatStream}>{children}</ChatStreamContext>
     </NotificationContext>
   );
 }

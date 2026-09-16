@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
@@ -10,7 +9,7 @@ import {
 } from "@/lib/radar/description";
 import { resolutionOf } from "@/lib/radar/state-machine";
 import { SUBSTATE_LABEL } from "@/lib/radar/taxonomy";
-import { getFeed, type FeedEvent } from "@/server/activity/queries";
+import { getFeed } from "@/server/activity/queries";
 import { requireUser } from "@/server/guards";
 import {
   getComponentTree,
@@ -18,8 +17,7 @@ import {
   getPeople,
   getRadarByNumber,
 } from "@/server/radars/queries";
-import { ActivityFeed } from "@/components/activity/activity-feed";
-import { CommentComposer } from "@/components/activity/comment-composer";
+import { ActivitySection } from "@/components/activity/activity-section";
 import { Markdown } from "@/components/markdown";
 import { StateBadge } from "@/components/radar/badges";
 import { CloseDuplicateDialog } from "@/components/radar/close-duplicate-dialog";
@@ -43,6 +41,7 @@ export async function generateMetadata({
 
 export default async function RadarDetailPage({
   params,
+  searchParams,
 }: PageProps<"/radars/[number]">) {
   const user = await requireUser();
   const { number } = await params;
@@ -64,10 +63,11 @@ export default async function RadarDetailPage({
   const radar = await getRadarByNumber(radarNumber);
   if (!radar) notFound();
 
-  const [people, components, milestones] = await Promise.all([
+  const [people, components, milestones, query] = await Promise.all([
     peoplePromise,
     componentsPromise,
     milestonesPromise,
+    searchParams,
   ]);
 
   const values = Object.fromEntries(
@@ -157,29 +157,16 @@ export default async function RadarDetailPage({
 
           <RelationsPanel radar={radar} />
 
-          <section className="rounded-lg border">
-            <header className="border-b px-4 py-2">
-              <h2 className="text-sm font-medium">Activity</h2>
-            </header>
-            <div className="px-4">
-              {/* Streamed: the radar itself is what people came for, and the
-                  feed grows without bound while the rest of the page doesn't. */}
-              <Suspense fallback={<ActivitySkeleton />}>
-                <Activity
-                  events={feedPromise}
-                  radarNumber={radar.number}
-                  currentUserId={user.id}
-                />
-              </Suspense>
-            </div>
-            <div className="border-t p-4">
-              <CommentComposer
-                radarId={radar.id}
-                number={radar.number}
-                people={people}
-              />
-            </div>
-          </section>
+          {/* Streamed: the radar itself is what people came for, and the feed
+              grows without bound while the rest of the page doesn't. The chat
+              tab inside only exists for people on the radar. */}
+          <ActivitySection
+            radar={radar}
+            user={user}
+            people={people}
+            events={feedPromise}
+            openChat={query.chat === "1"}
+          />
         </div>
 
         <aside className="flex flex-col gap-4">
@@ -202,40 +189,6 @@ export default async function RadarDetailPage({
           </div>
         </aside>
       </div>
-    </div>
-  );
-}
-
-async function Activity({
-  events,
-  radarNumber,
-  currentUserId,
-}: {
-  events: Promise<FeedEvent[]>;
-  radarNumber: number;
-  currentUserId: string;
-}) {
-  return (
-    <ActivityFeed
-      events={await events}
-      radarNumber={radarNumber}
-      currentUserId={currentUserId}
-    />
-  );
-}
-
-function ActivitySkeleton() {
-  return (
-    <div className="flex flex-col gap-3 py-3" aria-hidden>
-      {[0, 1, 2].map((row) => (
-        <div key={row} className="flex gap-3">
-          <div className="bg-muted size-6 shrink-0 animate-pulse rounded-full" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="bg-muted h-3 w-40 animate-pulse rounded" />
-            <div className="bg-muted h-10 animate-pulse rounded-lg" />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

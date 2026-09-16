@@ -29,6 +29,27 @@ export async function createFixtures(label: string) {
     select: { id: true },
   });
 
+  // Two users cannot express "originator, assignee, and someone who is neither",
+  // which is the shape every access test needs.
+  const third = await db.user.create({
+    data: {
+      name: `Third ${label}`,
+      email: `${TEST_PREFIX}third-${suffix}@radar.local`,
+      handle: `${TEST_PREFIX}third-${suffix}`,
+    },
+    select: { id: true },
+  });
+
+  const admin = await db.user.create({
+    data: {
+      name: `Admin ${label}`,
+      email: `${TEST_PREFIX}admin-${suffix}@radar.local`,
+      handle: `${TEST_PREFIX}admin-${suffix}`,
+      isAdmin: true,
+    },
+    select: { id: true },
+  });
+
   const component = await db.component.create({
     data: { name: `${TEST_PREFIX}${suffix}`, path: `${TEST_PREFIX}${suffix}` },
     select: { id: true },
@@ -39,7 +60,7 @@ export async function createFixtures(label: string) {
     select: { id: true },
   });
 
-  return { user, other, component, milestone };
+  return { user, other, third, admin, component, milestone };
 }
 
 export async function destroyFixtures() {

@@ -28,6 +28,36 @@ export type RealtimeEvent =
         radarTitle: string;
       };
     }
+  /**
+   * A radar chat message, addressed to each member's own channel rather than a
+   * channel of its own — see src/server/chat/publish.ts for why. The whole
+   * message rides along, author included, so the panel renders it without a
+   * follow-up fetch and without an avatar that pops in late. `createdAt` is an
+   * ISO string because this crosses JSON.stringify twice on its way to the
+   * browser.
+   */
+  | {
+      type: "chat";
+      radarId: string;
+      radarNumber: number;
+      message: {
+        id: string;
+        body: string;
+        createdAt: string;
+        author: {
+          id: string;
+          name: string;
+          handle: string;
+          image: string | null;
+        };
+      };
+    }
+  | {
+      type: "chat-removed";
+      radarId: string;
+      radarNumber: number;
+      messageId: string;
+    }
   | { type: "ping" };
 
 const restUrl = () => env.UPSTASH_REDIS_REST_URL;

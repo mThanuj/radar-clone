@@ -190,6 +190,8 @@ model User {
   subscriptions        RadarSubscriber[] @relation("SubscriptionUser")
   subscriptionsGranted RadarSubscriber[] @relation("SubscriptionAddedBy")
   comments             Comment[]         @relation("CommentAuthor")
+  chatMessages         ChatMessage[]     @relation("ChatAuthor")
+  chatReads            ChatRead[]        @relation("ChatReader")
   activityEvents       ActivityEvent[]   @relation("ActivityActor")
   relationsCreated     RadarRelation[]   @relation("RelationCreatedBy")
   savedQueries         SavedQuery[]
@@ -349,6 +351,8 @@ model Radar {
   duplicates       Radar[]           @relation("RadarDuplicate")
   subscribers   RadarSubscriber[]
   comments      Comment[]
+  chatMessages  ChatMessage[]
+  chatReads     ChatRead[]
   activity      ActivityEvent[]
   outgoing      RadarRelation[]   @relation("RelationSource")
   incoming      RadarRelation[]   @relation("RelationTarget")
@@ -416,6 +420,46 @@ model Comment {
   activityEvent ActivityEvent?
 
   @@index([radarId, createdAt])
+}
+
+/// Private side conversation for the people working a radar.
+///
+/// Its own table rather than a flag on Comment or a kind on ActivityEvent: the
+/// activity feed is readable by every signed-in user and drains into /timeline
+/// and the email templates, and the audit invariant asserts one radar mutation
+/// writes exactly one ActivityEvent. Private text can live in neither place.
+///
+/// Hard delete, unlike Comment: chat is not the audit record, so "the history
+/// has to survive" does not apply — and there is no global deletedAt filter, so
+/// one forgotten `where` on this table would leak private text.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  radarId   String
+  authorId  String
+  body      String   @db.Text /// plain text, never markdown
+  createdAt DateTime @default(now())
+
+  radar  Radar @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  author User  @relation("ChatAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  /// Serves both reads: the page (newest N for a radar) and the unread count
+  /// (same prefix, range on createdAt).
+  @@index([radarId, createdAt])
+}
+
+/// How far one person has read one radar's chat. Absent means "never opened".
+/// Drives the tab badge and nothing else — there is no Notification behind it.
+model ChatRead {
+  id      String   @id @default(cuid())
+  radarId String
+  userId  String
+  readAt  DateTime @default(now())
+
+  radar Radar @relation(fields: [radarId], references: [id], onDelete: Cascade)
+  user  User  @relation("ChatReader", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One marker per person per radar; also the upsert target.
+  @@unique([radarId, userId])
 }
 
 /// The feed *is* this table, ordered by createdAt. One event per mutation,
