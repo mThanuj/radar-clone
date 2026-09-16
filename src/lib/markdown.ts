@@ -13,8 +13,18 @@ export function stripMarkdown(markdown: string): string {
     .trim();
 }
 
-/** @handle mentions, excluding ones inside code spans or fences. */
-export function extractMentions(markdown: string): string[] {
+/**
+ * The handle that means "everyone with an account".
+ *
+ * Reserved, in two places that both have to hold: profile edits refuse it and
+ * sign-up skips it when deriving a handle from an email address. If a person
+ * could hold it, every @all would be ambiguous — so extractMentions drops it
+ * too, and @all can only ever mean the broadcast.
+ */
+export const EVERYONE_HANDLE = "all";
+
+/** Every @handle written outside code, including the reserved one. */
+function rawMentions(markdown: string): string[] {
   const withoutCode = markdown
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`[^`]*`/g, " ");
@@ -24,6 +34,17 @@ export function extractMentions(markdown: string): string[] {
   }
   return [...handles];
 }
+
+/** @handle mentions of people, excluding ones inside code spans or fences. */
+export function extractMentions(markdown: string): string[] {
+  return rawMentions(markdown).filter((handle) => handle !== EVERYONE_HANDLE);
+}
+
+/** Whether this text broadcasts to every account. Same rules as a mention. */
+export function mentionsEveryone(markdown: string): boolean {
+  return rawMentions(markdown).includes(EVERYONE_HANDLE);
+}
+
 
 /**
  * Whether a caret sitting at the end of `before` is inside code.

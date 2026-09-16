@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { EVERYONE_HANDLE } from "@/lib/markdown";
 import { actionError, type ActionResult } from "@/server/action-result";
 import { requireUser } from "@/server/guards";
 
@@ -14,7 +15,13 @@ const schema = z.object({
     .trim()
     .min(2)
     .max(30)
-    .regex(/^[a-z0-9][a-z0-9._-]*$/, "Lowercase letters, digits, dot, dash, underscore."),
+    .regex(/^[a-z0-9][a-z0-9._-]*$/, "Lowercase letters, digits, dot, dash, underscore.")
+    // @all is the broadcast. Someone holding it would make every @all
+    // ambiguous, so the name is not available.
+    .refine(
+      (handle) => handle !== EVERYONE_HANDLE,
+      `@${EVERYONE_HANDLE} is reserved — it notifies everyone.`,
+    ),
 });
 
 export async function updateProfileAction(

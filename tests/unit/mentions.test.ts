@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { extractMentions, mentionQueryAt } from "@/lib/markdown";
+import {
+  EVERYONE_HANDLE,
+  extractMentions,
+  mentionQueryAt,
+  mentionsEveryone,
+} from "@/lib/markdown";
 
 /** Caret at the end of the text, which is where someone typing actually is. */
 const at = (text: string) => mentionQueryAt(text, text.length);
@@ -52,5 +57,42 @@ describe("mentionQueryAt", () => {
     expect(trigger).not.toBeNull();
     // The same text, once sent, has to yield the handle the menu was offering.
     expect(extractMentions("ping @sam.lee-2")).toEqual(["sam.lee-2"]);
+  });
+
+  it("offers the broadcast while @all is still being typed", () => {
+    // The menu shows the "Everyone" row for any prefix of "all", so these are
+    // the queries that have to keep opening it.
+    for (const text of ["@", "@a", "@al", "@all"]) {
+      const trigger = at(text);
+      expect(trigger).not.toBeNull();
+      expect(EVERYONE_HANDLE.startsWith(trigger!.query)).toBe(true);
+    }
+  });
+});
+
+describe("mentionsEveryone", () => {
+  it("reads @all as the broadcast, whatever the casing", () => {
+    expect(mentionsEveryone("@all heads up")).toBe(true);
+    expect(mentionsEveryone("heads up @All")).toBe(true);
+    expect(mentionsEveryone("ship it, @sam @all")).toBe(true);
+  });
+
+  it("is not triggered by a handle that merely starts with it", () => {
+    // @allison must reach one person, not the company.
+    expect(mentionsEveryone("@allison please review")).toBe(false);
+    expect(mentionsEveryone("mail all@radar.local")).toBe(false);
+    expect(mentionsEveryone("nobody is mentioned here")).toBe(false);
+  });
+
+  it("stays shut inside code, exactly like a handle mention", () => {
+    expect(mentionsEveryone("run `@all` to broadcast")).toBe(false);
+    expect(mentionsEveryone("```\n@all\n```")).toBe(false);
+  });
+
+  it("keeps the reserved handle out of the people lookup", () => {
+    // Otherwise a stray account holding "all" would be notified personally as
+    // well as everyone being notified — two meanings for one word.
+    expect(extractMentions("@all and @sam")).toEqual(["sam"]);
+    expect(extractMentions("@all")).toEqual([]);
   });
 });

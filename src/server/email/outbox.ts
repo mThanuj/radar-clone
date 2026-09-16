@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
 import { categoryOf } from "@/lib/notifications/catalog";
 import type { DiffEntry } from "@/lib/notifications/classify";
-import { renderEmail, type EmailPayload } from "@/server/email/templates";
+import { renderEmail, emailSubject, type EmailPayload } from "@/server/email/templates";
 import { fromAddress, getTransport, isLiveMail } from "@/server/email/transport";
 import { unsubscribeUrl } from "@/server/email/unsubscribe";
 import type { Tx } from "@/server/tx";
@@ -28,58 +28,70 @@ const BACKOFF = [1, 5, 15, 60, 180];
 const CLAIM_TIMEOUT_MINUTES = 10;
 
 /**
- * Queue an email inside the caller's transaction.
+ * Queue mail inside the caller's transaction.
  *
- * Writing the outbox row transactionally with the Notification is what makes
+ * Writing the outbox rows transactionally with the Notifications is what makes
  * delivery safe in both directions: mail cannot be sent for a change that
  * rolled back, and a change cannot commit while silently losing its mail.
+ *
+ * Takes the whole batch rather than one recipient at a time because @all
+ * reaches every account, and a round trip per person inside an interactive
+ * transaction is how that feature would time out instead of sending. The actor
+ * is resolved once by the caller for the same reason.
  */
-export async function enqueueEmail(
+export async function enqueueEmails(
   tx: Tx,
   args: {
-    recipientId: string;
-    to: string;
-    notificationId: string | null;
-    reason: NotificationReason;
+    actorName: string | null;
     radar: { number: number; title: string };
-    actorId: string | null;
     changes: DiffEntry[];
     commentExcerpt?: string | null;
+    messages: {
+      recipientId: string;
+      to: string;
+      notificationId: string | null;
+      reason: NotificationReason;
+    }[];
   },
 ) {
-  const actor = args.actorId
-    ? await tx.user.findUnique({
-        where: { id: args.actorId },
-        select: { name: true },
-      })
-    : null;
+  if (args.messages.length === 0) return;
 
-  const payload: EmailPayload = {
-    reason: args.reason,
-    radar: args.radar,
-    actorName: actor?.name ?? null,
-    changes: args.changes.map((c) => ({
-      field: c.field,
-      fromLabel: (c as { fromLabel?: string | null }).fromLabel ?? null,
-      toLabel: (c as { toLabel?: string | null }).toLabel ?? null,
-    })),
-    commentExcerpt: args.commentExcerpt ?? null,
-    radarUrl: appUrl(`/radars/${args.radar.number}`),
-    settingsUrl: appUrl("/settings/notifications"),
-    unsubscribeUrl: unsubscribeUrl(args.recipientId, categoryOf(args.reason)),
-  };
+  // Identical for every recipient, so built once.
+  const changes = args.changes.map((c) => ({
+    field: c.field,
+    fromLabel: (c as { fromLabel?: string | null }).fromLabel ?? null,
+    toLabel: (c as { toLabel?: string | null }).toLabel ?? null,
+  }));
+  const radarUrl = appUrl(`/radars/${args.radar.number}`);
+  const settingsUrl = appUrl("/settings/notifications");
 
-  const { subject } = renderEmail(payload);
+  await tx.emailMessage.createMany({
+    data: args.messages.map((message) => {
+      // Per recipient: the reason they got it, and a link that unsubscribes
+      // them and nobody else.
+      const payload: EmailPayload = {
+        reason: message.reason,
+        radar: args.radar,
+        actorName: args.actorName,
+        changes,
+        commentExcerpt: args.commentExcerpt ?? null,
+        radarUrl,
+        settingsUrl,
+        unsubscribeUrl: unsubscribeUrl(
+          message.recipientId,
+          categoryOf(message.reason),
+        ),
+      };
 
-  await tx.emailMessage.create({
-    data: {
-      recipientId: args.recipientId,
-      notificationId: args.notificationId,
-      to: args.to,
-      subject,
-      template: args.reason,
-      payload: payload as unknown as object,
-    },
+      return {
+        recipientId: message.recipientId,
+        notificationId: message.notificationId,
+        to: message.to,
+        subject: emailSubject(payload),
+        template: message.reason,
+        payload: payload as unknown as object,
+      };
+    }),
   });
 }
 
@@ -212,10 +224,27 @@ export async function outboxSummary() {
  * Fire-and-forget wrapper for the request path. Never throws: a mail problem
  * must not turn a successful save into an error the user sees, and the cron
  * sweep will retry whatever is left behind.
+ *
+ * Sweeps in rounds rather than once, because one @all queues a row per account
+ * and a single claim of 25 would leave the rest sitting until tomorrow's cron
+ * — the only schedule Vercel Hobby allows. Stops as soon as a round claims
+ * nothing, and gives up well inside the segment's 60s so the invocation is
+ * never killed mid-send.
  */
+const MAX_SWEEP_ROUNDS = 8;
+const SWEEP_BUDGET_MS = 45_000;
+
 export async function dispatchQuietly(): Promise<void> {
+  const deadline = Date.now() + SWEEP_BUDGET_MS;
   try {
-    await dispatchPending();
+    for (let round = 0; round < MAX_SWEEP_ROUNDS; round += 1) {
+      const { sent, failed } = await dispatchPending();
+      // Nothing claimable left. A failure is not a reason to stop: the row's
+      // scheduledFor has already been pushed out, so the next round moves on
+      // to different mail rather than retrying this one.
+      if (sent + failed === 0) break;
+      if (Date.now() >= deadline) break;
+    }
   } catch (error) {
     console.error("email dispatch failed", error);
   }

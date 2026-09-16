@@ -49,6 +49,8 @@ function leadSentence(payload: EmailPayload): string {
       return `${who} added you as a watcher.`;
     case "MENTIONED":
       return `${who} mentioned you in a comment.`;
+    case "MENTIONED_ALL":
+      return `${who} sent this to everyone with a Radar account.`;
     case "COMMENTED":
       return `${who} commented.`;
     case "COMMENT_EDITED":
@@ -87,9 +89,20 @@ function changeLines(payload: EmailPayload): string[] {
     });
 }
 
+/**
+ * The subject line on its own.
+ *
+ * Exported because the outbox stores it alongside the payload, and one @all
+ * queues a row per account — rendering the whole HTML body just to read the
+ * first line off it is work per recipient that buys nothing.
+ */
+export function emailSubject(payload: EmailPayload): string {
+  return `${REASONS[payload.reason].label}: ${payload.radar.number} — ${payload.radar.title}`;
+}
+
 export function renderEmail(payload: EmailPayload): RenderedEmail {
   const meta = REASONS[payload.reason];
-  const subject = `${meta.label}: ${payload.radar.number} — ${payload.radar.title}`;
+  const subject = emailSubject(payload);
   const lead = leadSentence(payload);
   const lines = changeLines(payload);
 

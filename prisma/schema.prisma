@@ -121,6 +121,9 @@ enum NotificationReason {
   WATCHING_ADDED
   // DISCUSSION
   MENTIONED
+  /// @all in a comment. Separate from MENTIONED because a broadcast must not
+  /// inherit its right to ignore the reader's settings.
+  MENTIONED_ALL
   COMMENTED
   COMMENT_EDITED
   // WORKFLOW

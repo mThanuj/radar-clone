@@ -10,7 +10,7 @@ import {
   resolveChannels,
   type ChannelPreference,
 } from "@/lib/notifications/resolve";
-import { enqueueEmail } from "@/server/email/outbox";
+import { enqueueEmails } from "@/server/email/outbox";
 import type { Tx } from "@/server/tx";
 
 /**
@@ -114,6 +114,11 @@ export async function fanOut(tx: Tx, args: FanOutArgs): Promise<string[]> {
   }
 
   const delivered: string[] = [];
+  const mailable: {
+    recipientId: string;
+    to: string;
+    reason: NotificationReason;
+  }[] = [];
 
   for (const user of users) {
     const reason = reasonByUser.get(user.id)!;
@@ -124,39 +129,85 @@ export async function fanOut(tx: Tx, args: FanOutArgs): Promise<string[]> {
       muted: mutedBy.has(user.id),
     });
 
-    if (!channels.inApp && !channels.email) continue;
+    if (channels.inApp) delivered.push(user.id);
+    if (channels.email) {
+      mailable.push({ recipientId: user.id, to: user.email, reason });
+    }
+  }
 
-    // Created one at a time rather than createMany because the email row needs
-    // the notification id to stay idempotent.
-    const notification = channels.inApp
-      ? await tx.notification.create({
-          data: {
-            recipientId: user.id,
-            radarId: radar.id,
-            eventId: args.eventId,
-            reason,
-          },
-          select: { id: true },
+  if (delivered.length === 0 && mailable.length === 0) return [];
+
+  // createMany and then read the ids back, rather than a create per person:
+  // @all reaches every account, and a round trip each is what would push this
+  // transaction past its timeout. The read back is exact because eventId
+  // belongs to this event alone.
+  if (delivered.length > 0) {
+    await tx.notification.createMany({
+      data: delivered.map((userId) => ({
+        recipientId: userId,
+        radarId: radar.id,
+        eventId: args.eventId,
+        reason: reasonByUser.get(userId)!,
+      })),
+    });
+  }
+
+  if (mailable.length > 0) {
+    // The email row carries its notification's id, and the unique constraint
+    // on it is what makes redelivery safe.
+    const created = delivered.length
+      ? await tx.notification.findMany({
+          where: { eventId: args.eventId, recipientId: { in: delivered } },
+          select: { id: true, recipientId: true },
+        })
+      : [];
+    const idByRecipient = new Map(created.map((n) => [n.recipientId, n.id]));
+
+    const actor = args.actorId
+      ? await tx.user.findUnique({
+          where: { id: args.actorId },
+          select: { name: true },
         })
       : null;
 
-    if (channels.email) {
-      await enqueueEmail(tx, {
-        recipientId: user.id,
-        to: user.email,
-        notificationId: notification?.id ?? null,
-        reason,
-        radar: { number: radar.number, title: radar.title },
-        actorId: args.actorId,
-        changes,
-        commentExcerpt: args.commentExcerpt ?? null,
-      });
-    }
-
-    if (channels.inApp) delivered.push(user.id);
+    await enqueueEmails(tx, {
+      actorName: actor?.name ?? null,
+      radar: { number: radar.number, title: radar.title },
+      changes,
+      commentExcerpt: args.commentExcerpt ?? null,
+      messages: mailable.map((message) => ({
+        ...message,
+        notificationId: idByRecipient.get(message.recipientId) ?? null,
+      })),
+    });
   }
 
   return delivered;
+}
+
+/**
+ * Everyone with an account, minus the actor. What an @all expands to.
+ *
+ * Deliberately not the radar's followers: the point of a broadcast is to reach
+ * people who are *not* following it. Deactivated accounts are left out — they
+ * cannot read an inbox, and their address may not be theirs any more.
+ *
+ * This is the audience, not the delivery list. fanOut still applies each
+ * person's own preferences, and MENTIONED_ALL is not forced, so a mute or a
+ * switched-off category still wins.
+ */
+export async function everyoneAudience(
+  tx: Tx,
+  exceptUserId: string | null,
+): Promise<string[]> {
+  const users = await tx.user.findMany({
+    where: {
+      isActive: true,
+      ...(exceptUserId ? { id: { not: exceptUserId } } : {}),
+    },
+    select: { id: true },
+  });
+  return users.map((user) => user.id);
 }
 
 /**

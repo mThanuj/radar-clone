@@ -89,7 +89,7 @@ so an unconfigured deployment has closed endpoints rather than open ones.
 
 ## Notifications
 
-Twenty events across four categories — assignment, discussion, workflow,
+Nineteen events across four categories — assignment, discussion, workflow,
 planning — each deliverable in-app, by email, or both, per user. The catalog in
 `src/lib/notifications/catalog.ts` is the single definition: the settings page
 renders from it and the server filters on it, so a toggle can't mean two
@@ -98,6 +98,13 @@ different things.
 Suppression is checked in a fixed order, and that order is a test rather than a
 convention: actor → per-radar mute → global email switch → category toggle,
 with `@mentions` overriding the last two.
+
+`@all` in a comment reaches every active account rather than the radar's
+followers — a separate reason from `@mention` precisely so it does *not*
+inherit that override: a broadcast still answers to each reader's mute, their
+category toggle and their global mail switch. The handle `all` is reserved so
+no account can shadow it. The composer names the number of people before you
+send.
 
 Email goes through an outbox written in the same transaction as the
 notification, so mail can neither be lost nor sent for a change that rolled

@@ -47,6 +47,10 @@ describe("catalog", () => {
     expect(mostSpecific("ASSIGNED", "SUBSCRIBED")).toBe("ASSIGNED");
     expect(mostSpecific("STATE_CHANGED", "MENTIONED")).toBe("MENTIONED");
     expect(mostSpecific("RESOLVED", "STATE_CHANGED")).toBe("RESOLVED");
+    // Named personally in a comment that also said @all: the personal reason
+    // is the true one, and it's the one that ignores your category toggle.
+    expect(mostSpecific("MENTIONED_ALL", "MENTIONED")).toBe("MENTIONED");
+    expect(mostSpecific("MENTIONED_ALL", "COMMENTED")).toBe("MENTIONED_ALL");
   });
 });
 

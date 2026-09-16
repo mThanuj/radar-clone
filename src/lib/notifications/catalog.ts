@@ -80,6 +80,18 @@ export const REASONS: Record<NotificationReason, ReasonMeta> = {
     forced: true,
     precedence: 5,
   },
+  MENTIONED_ALL: {
+    category: "DISCUSSION",
+    label: "Sent to everyone",
+    template: "mentioned-all",
+    defaultInApp: true,
+    defaultEmail: true,
+    // Deliberately *not* forced, unlike MENTIONED. Typing one person's handle
+    // earns the right to ignore their category toggle; typing @all would hand
+    // that right over every account at once, and the unsubscribe link in the
+    // mail has to mean something.
+    precedence: 6,
+  },
   COMMENTED: {
     category: "DISCUSSION",
     label: "New comment",
@@ -203,7 +215,7 @@ export const CATEGORIES: Record<
   DISCUSSION: {
     label: "Comments & mentions",
     description:
-      "Comments on radars you follow. Mentions always notify, whatever this is set to.",
+      "Comments on radars you follow, and @all announcements. Mentions of you by handle always notify, whatever this is set to.",
   },
   WORKFLOW: {
     label: "State & resolution",

@@ -4,6 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
+import { EVERYONE_HANDLE } from "@/lib/markdown";
 import { hasMailExchanger } from "@/server/email/domain-check";
 import { renderVerificationEmail } from "@/server/email/templates";
 import { fromAddress, getTransport } from "@/server/email/transport";
@@ -23,6 +24,9 @@ async function deriveHandle(email: string): Promise<string> {
 
   for (let attempt = 0; ; attempt++) {
     const candidate = attempt === 0 ? base : `${base}${attempt + 1}`;
+    // all@… is a real address to sign up with, and "all" is the broadcast
+    // handle. Skipping it here hands that person "all2" instead.
+    if (candidate === EVERYONE_HANDLE) continue;
     const taken = await db.user.findUnique({
       where: { handle: candidate },
       select: { id: true },

@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { extractMentions, stripMarkdown } from "@/lib/markdown";
+import { extractMentions, mentionsEveryone, stripMarkdown } from "@/lib/markdown";
 import { withAuditResult } from "@/server/context";
 import { recordActivity } from "@/server/activity/record";
 import { scheduleEmailDispatch } from "@/server/email/outbox";
 import { requireUser } from "@/server/guards";
+import { everyoneAudience } from "@/server/notifications/fanout";
 import { schedulePush } from "@/server/realtime/notify";
 import type { Tx } from "@/server/tx";
 import type { ActionResult } from "@/server/action-result";
@@ -35,6 +36,13 @@ export async function addCommentAction(
             })
           : [];
 
+        // @all: every account, not just this radar's followers. Fan-out drops
+        // the actor and applies each person's own preferences from there, so
+        // this is the audience, not the delivery list.
+        const everyone = mentionsEveryone(body)
+          ? await everyoneAudience(tx as Tx, user.id)
+          : [];
+
         const comment = await tx.comment.create({
           data: {
             radarId,
@@ -60,10 +68,19 @@ export async function addCommentAction(
           kind: "COMMENT_ADDED",
           commentId: comment.id,
           commentExcerpt: body.slice(0, 400),
-          direct: mentioned.map((m) => ({
-            userId: m.id,
-            reason: "MENTIONED" as const,
-          })),
+          // Named last on purpose: mostSpecific keeps MENTIONED over
+          // MENTIONED_ALL, so someone both @'d by handle and caught by an @all
+          // gets the personal reason.
+          direct: [
+            ...everyone.map((userId) => ({
+              userId,
+              reason: "MENTIONED_ALL" as const,
+            })),
+            ...mentioned.map((m) => ({
+              userId: m.id,
+              reason: "MENTIONED" as const,
+            })),
+          ],
         });
       }),
     );

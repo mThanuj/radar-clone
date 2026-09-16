@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { withAudit } from "@/server/context";
 import { recordActivity } from "@/server/activity/record";
 import { dispatchPending } from "@/server/email/outbox";
+import { everyoneAudience } from "@/server/notifications/fanout";
 import {
   closeAsDuplicate,
   createRadar,
@@ -207,6 +208,99 @@ describe("fan-out", () => {
 
     expect((await notificationsFor(fx.other.id))[0].reason).toBe("MENTIONED");
     expect((await notificationsFor(third.id))[0].reason).toBe("COMMENTED");
+  });
+});
+
+describe("@all", () => {
+  it("expands to every account except the author, and skips deactivated ones", async () => {
+    const gone = await db.user.create({
+      data: {
+        name: "Deactivated",
+        email: `zz-test-gone-${Date.now()}@radar.local`,
+        handle: `zz-test-gone-${Date.now()}`,
+        isActive: false,
+      },
+      select: { id: true },
+    });
+
+    const audience = await everyoneAudience(db, fx.user.id);
+
+    // Reaches people who never touched the radar — that is the whole point of
+    // a broadcast, and what makes it different from radarAudience.
+    expect(audience).toContain(fx.other.id);
+    expect(audience).not.toContain(fx.user.id);
+    expect(audience).not.toContain(gone.id);
+  });
+
+  it("notifies and mails a broadcast by default", async () => {
+    const radar = await newRadar("Broadcast subject");
+
+    await withAudit(fx.user.id, () =>
+      db.$transaction((tx) =>
+        recordActivity(tx as Tx, {
+          radarId: radar.id,
+          actorId: fx.user.id,
+          kind: "COMMENT_ADDED",
+          commentExcerpt: "@all the build is broken",
+          direct: [{ userId: fx.other.id, reason: "MENTIONED_ALL" }],
+        }),
+      ),
+    );
+
+    const theirs = await notificationsFor(fx.other.id);
+    expect(theirs).toHaveLength(1);
+    expect(theirs[0].reason).toBe("MENTIONED_ALL");
+
+    const mail = await emailsFor(fx.other.id);
+    expect(mail).toHaveLength(1);
+    expect(mail[0].subject).toContain("Sent to everyone");
+    // Still tied to its notification, so a retry cannot double-send it.
+    expect(mail[0].notificationId).not.toBeNull();
+  });
+
+  it("lets a reader refuse a broadcast, unlike a mention by name", async () => {
+    await db.user.update({
+      where: { id: fx.other.id },
+      data: { emailEnabled: false },
+    });
+
+    const radar = await newRadar("Refused broadcast subject");
+    await withAudit(fx.user.id, () =>
+      db.$transaction((tx) =>
+        recordActivity(tx as Tx, {
+          radarId: radar.id,
+          actorId: fx.user.id,
+          kind: "COMMENT_ADDED",
+          direct: [{ userId: fx.other.id, reason: "MENTIONED_ALL" }],
+        }),
+      ),
+    );
+
+    // MENTIONED is forced past the master switch; MENTIONED_ALL must not be,
+    // or one person typing @all overrides everyone's mail settings at once.
+    expect(await notificationsFor(fx.other.id)).toHaveLength(1);
+    expect(await emailsFor(fx.other.id)).toHaveLength(0);
+  });
+
+  it("says nothing to someone who muted the radar it landed on", async () => {
+    const radar = await newRadar("Muted broadcast subject");
+    await db.radarSubscriber.create({
+      data: { radarId: radar.id, userId: fx.other.id, role: "CC", muted: true },
+    });
+
+    await withAudit(fx.user.id, () =>
+      db.$transaction((tx) =>
+        recordActivity(tx as Tx, {
+          radarId: radar.id,
+          actorId: fx.user.id,
+          kind: "COMMENT_ADDED",
+          direct: [{ userId: fx.other.id, reason: "MENTIONED_ALL" }],
+        }),
+      ),
+    );
+
+    expect(await notificationsFor(fx.other.id)).toHaveLength(0);
+    expect(await emailsFor(fx.other.id)).toHaveLength(0);
   });
 });
 
