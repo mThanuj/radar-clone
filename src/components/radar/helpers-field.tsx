@@ -33,10 +33,12 @@ export function HelpersField({
   radar,
   helpers,
   people,
+  currentUserId,
 }: {
   radar: { id: string; number: number };
   helpers: Helper[];
   people: { id: string; name: string; handle: string }[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,6 +68,9 @@ export function HelpersField({
   const query = term.toLowerCase();
   const candidates = people.filter(
     (person) =>
+      // You are not someone you ask for help. Picking yourself here is never
+      // the intent, and it costs a row to undo.
+      person.id !== currentUserId &&
       !alreadyHelping.has(person.id) &&
       (person.name.toLowerCase().includes(query) ||
         person.handle.toLowerCase().includes(query)),

@@ -189,6 +189,7 @@ export default async function RadarDetailPage({
               people={people}
               components={components}
               milestones={milestones}
+              currentUserId={user.id}
             />
           </div>
 

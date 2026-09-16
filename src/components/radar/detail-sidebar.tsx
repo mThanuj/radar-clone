@@ -26,11 +26,13 @@ export function DetailSidebar({
   people,
   components,
   milestones,
+  currentUserId,
 }: {
   radar: RadarDetail;
   people: { id: string; name: string; handle: string }[];
   components: { id: string; path: string }[];
   milestones: { id: string; name: string }[];
+  currentUserId: string;
 }) {
   const ref: RadarRef = {
     id: radar.id,
@@ -128,6 +130,7 @@ export function DetailSidebar({
           radar={{ id: radar.id, number: radar.number }}
           helpers={radar.subscribers.filter((s) => s.role === "HELPER")}
           people={people}
+          currentUserId={currentUserId}
         />
       </FieldRow>
 
