@@ -39,6 +39,7 @@ export const FIELD_IDS = [
   "component",
   "milestone",
   "assignee",
+  "helper",
   "originator",
   "cc",
   "watching",

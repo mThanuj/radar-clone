@@ -2,7 +2,7 @@
 
 A clone of Apple's internal Radar issue tracker — its actual domain model
 (components, classification, state/substate, milestones, typed relationships,
-CC lists) in a Linear-style interface, plus a global activity timeline.
+helpers, CC lists) in a Linear-style interface, plus a global activity timeline.
 
 Next.js 16 · React 19 · TypeScript · Tailwind v4 + shadcn (Base UI) ·
 Prisma 7 · Neon Postgres · better-auth

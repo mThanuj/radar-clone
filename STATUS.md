@@ -25,7 +25,7 @@ Architecture and runbook: `README.md`. Original plan:
 /inbox                    notifications, unread badge, mark read
 /radars                   filters · sort · group · columns · bulk edit · save query
 /radars/new               full problem report form
-/radars/[number]          detail: inline fields, description, activity, relations, CC
+/radars/[number]          detail: inline fields, description, activity, relations, helpers, CC
 /board                    drag between states
 /timeline                 global activity stream, day grouped, actor filter
 /milestones  /milestones/[id]   progress + burnup chart

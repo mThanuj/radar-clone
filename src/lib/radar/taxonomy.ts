@@ -163,6 +163,7 @@ export const MILESTONE_STATUS_TONE: Record<MilestoneStatus, Tone> = {
 export const SUBSCRIBER_ROLE_LABEL: Record<SubscriberRole, string> = {
   CC: "CC",
   WATCHER: "Watcher",
+  HELPER: "Helper",
 };
 
 export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { SubscriberRole } from "@/generated/prisma/enums";
+import type { NotificationReason } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { scheduleEmailDispatch } from "@/server/email/outbox";
 import { actionError, type ActionResult } from "@/server/action-result";
@@ -18,6 +19,19 @@ const addSchema = z.object({
   userId: z.string().min(1),
   role: z.enum(SubscriberRole),
 });
+
+/** Audit field key per role; see auditFieldLabel for how these read. */
+const AUDIT_FIELD: Record<SubscriberRole, string> = {
+  CC: "cc",
+  WATCHER: "watcher",
+  HELPER: "helper",
+};
+
+const REASON: Record<SubscriberRole, NotificationReason> = {
+  CC: "CC_ADDED",
+  WATCHER: "WATCHING_ADDED",
+  HELPER: "HELPER_ADDED",
+};
 
 export async function addSubscriberAction(
   input: z.input<typeof addSchema>,
@@ -45,17 +59,12 @@ export async function addSubscriberAction(
           kind: "SUBSCRIBER_ADDED",
           changes: [
             {
-              field: role === "CC" ? "cc" : "watcher",
+              field: AUDIT_FIELD[role],
               toValue: userId,
               toLabel: person.name,
             },
           ],
-          direct: [
-            {
-              userId,
-              reason: role === "CC" ? ("CC_ADDED" as const) : ("WATCHING_ADDED" as const),
-            },
-          ],
+          direct: [{ userId, reason: REASON[role] }],
         });
       }),
     );
@@ -98,7 +107,7 @@ export async function removeSubscriberAction(
           notify: false,
           changes: [
             {
-              field: row.role === "CC" ? "cc" : "watcher",
+              field: AUDIT_FIELD[row.role],
               fromValue: row.userId,
               fromLabel: row.user.name,
             },

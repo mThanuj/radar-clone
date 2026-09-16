@@ -345,6 +345,24 @@ export const FIELDS: Record<FieldId, FieldDef> = {
     auditable: true,
   },
 
+  /**
+   * People working the radar alongside its assignee. Stored as a subscriber
+   * role, so this reads the same join `cc` does — "who is on this" is one
+   * question with three answers, not three tables.
+   */
+  helper: {
+    id: "helper",
+    label: "Helper",
+    kind: "user",
+    ops: ["in"],
+    defaultOp: "in",
+    optionSource: "user",
+    toWhere: (c, ctx) => {
+      const { ids } = resolveUserValues(c.values, ctx);
+      return { subscribers: { some: { userId: { in: ids }, role: "HELPER" } } };
+    },
+  },
+
   originator: {
     id: "originator",
     label: "Originator",

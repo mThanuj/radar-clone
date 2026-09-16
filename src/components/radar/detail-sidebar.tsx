@@ -18,6 +18,7 @@ import {
   type RadarRef,
 } from "@/components/radar/field-controls";
 import { PriorityBadge, UserChip } from "@/components/radar/badges";
+import { HelpersField } from "@/components/radar/helpers-field";
 import { Switch } from "@/components/ui/switch";
 
 export function DetailSidebar({
@@ -119,6 +120,14 @@ export function DetailSidebar({
           allowEmpty
           emptyLabel="Unassigned"
           searchable
+        />
+      </FieldRow>
+
+      <FieldRow label="Helpers">
+        <HelpersField
+          radar={{ id: radar.id, number: radar.number }}
+          helpers={radar.subscribers.filter((s) => s.role === "HELPER")}
+          people={people}
         />
       </FieldRow>
 

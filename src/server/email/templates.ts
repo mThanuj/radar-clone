@@ -45,6 +45,8 @@ function leadSentence(payload: EmailPayload): string {
       return `${who} unassigned this radar from you.`;
     case "CC_ADDED":
       return `${who} added you to the CC list.`;
+    case "HELPER_ADDED":
+      return `${who} added you as a helper on this radar.`;
     case "WATCHING_ADDED":
       return `${who} added you as a watcher.`;
     case "MENTIONED":

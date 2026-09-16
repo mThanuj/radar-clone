@@ -51,13 +51,23 @@ export const REASONS: Record<NotificationReason, ReasonMeta> = {
     defaultEmail: true,
     precedence: 11,
   },
+  HELPER_ADDED: {
+    category: "ASSIGNMENT",
+    label: "You were added as a helper",
+    template: "helper-added",
+    defaultInApp: true,
+    defaultEmail: true,
+    // Being asked to work a radar is nearly being assigned one, so it sits
+    // directly under the assignment reasons and above CC.
+    precedence: 12,
+  },
   CC_ADDED: {
     category: "ASSIGNMENT",
     label: "You were CC'd",
     template: "cc-added",
     defaultInApp: true,
     defaultEmail: true,
-    precedence: 12,
+    precedence: 13,
   },
   WATCHING_ADDED: {
     category: "ASSIGNMENT",
@@ -65,7 +75,7 @@ export const REASONS: Record<NotificationReason, ReasonMeta> = {
     template: "watching-added",
     defaultInApp: true,
     defaultEmail: false,
-    precedence: 13,
+    precedence: 14,
   },
 
   // ── Discussion ──────────────────────────────────────────────────────────

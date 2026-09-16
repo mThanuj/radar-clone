@@ -22,6 +22,7 @@ const EXTRA: Record<string, string> = {
   dueDate: "Due date",
   cc: "CC",
   watcher: "Watcher",
+  helper: "Helper",
 };
 
 const SECTION_LABEL = Object.fromEntries(

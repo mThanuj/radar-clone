@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
+import { EMPTY_QUERY } from "@/lib/search/types";
 import { withAudit } from "@/server/context";
 import { recordActivity } from "@/server/activity/record";
 import { dispatchPending } from "@/server/email/outbox";
 import { everyoneAudience } from "@/server/notifications/fanout";
+import { searchRadars } from "@/server/radars/queries";
 import {
   closeAsDuplicate,
   createRadar,
@@ -301,6 +303,50 @@ describe("@all", () => {
 
     expect(await notificationsFor(fx.other.id)).toHaveLength(0);
     expect(await emailsFor(fx.other.id)).toHaveLength(0);
+  });
+});
+
+describe("helpers", () => {
+  it("puts a helper in the radar's audience, like any other subscriber", async () => {
+    const radar = await newRadar("Helper subject");
+    await db.radarSubscriber.create({
+      data: { radarId: radar.id, userId: fx.other.id, role: "HELPER" },
+    });
+
+    await updateRadar({
+      radarId: radar.id,
+      actorId: fx.user.id,
+      patch: { priority: 1 },
+    });
+
+    // This is the whole reason a helper is a subscriber role rather than a
+    // column: they hear about the radar from then on, with no second opt-in.
+    const theirs = await notificationsFor(fx.other.id);
+    expect(theirs).toHaveLength(1);
+    expect(theirs[0].reason).toBe("PRIORITY_RAISED");
+  });
+
+  it("searches by helper without confusing the role with CC", async () => {
+    const helped = await newRadar("Helped subject");
+    const ccd = await newRadar("CC'd subject");
+    await db.radarSubscriber.create({
+      data: { radarId: helped.id, userId: fx.other.id, role: "HELPER" },
+    });
+    await db.radarSubscriber.create({
+      data: { radarId: ccd.id, userId: fx.other.id, role: "CC" },
+    });
+
+    const { rows } = await searchRadars(
+      {
+        ...EMPTY_QUERY,
+        conditions: [{ field: "helper", op: "in", values: [fx.other.id] }],
+      },
+      { userId: fx.user.id },
+    );
+
+    const numbers = rows.map((row) => row.number);
+    expect(numbers).toContain(helped.number);
+    expect(numbers).not.toContain(ccd.number);
   });
 });
 

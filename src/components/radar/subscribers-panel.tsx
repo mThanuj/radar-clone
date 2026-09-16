@@ -35,6 +35,9 @@ export function SubscribersPanel({
 
   const cc = radar.subscribers.filter((s) => s.role === "CC");
   const watchers = radar.subscribers.filter((s) => s.role === "WATCHER");
+  // Helpers are subscribers too, but they have their own field next to
+  // Assignee — listing them again here would be the same names twice.
+  const listed = cc.length + watchers.length;
 
   function run(
     fn: () => Promise<{ ok: boolean; error?: string }>,
@@ -208,7 +211,7 @@ export function SubscribersPanel({
         ),
       )}
 
-      {radar.subscribers.length === 0 && (
+      {listed === 0 && (
         <p className="text-muted-foreground text-xs">Nobody yet.</p>
       )}
     </div>
