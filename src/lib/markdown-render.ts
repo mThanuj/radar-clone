@@ -143,7 +143,8 @@ function mapOutsideCode(source: string, fn: (chunk: string) => string): string {
 }
 
 /**
- * Turn `rdar://problem/100000042` into a link, and highlight @handles.
+ * Turn `rdar://100000042` into a link, and highlight @handles. The legacy
+ * `rdar://problem/…` spelling is matched too, and normalized in the link text.
  * Runs before parsing so the result is ordinary markdown — and skips code so
  * a pasted log line doesn't sprout links.
  */
@@ -152,7 +153,7 @@ function autolink(markdown: string): string {
     chunk
       .replace(
         /(?<!\]\()rdar:\/\/(?:problem\/)?(\d{6,})/g,
-        (_match, number: string) => `[rdar://problem/${number}](/radars/${number})`,
+        (_match, number: string) => `[rdar://${number}](/radars/${number})`,
       )
       .replace(
         /(^|[^\w@`[])@([a-z0-9][a-z0-9._-]{1,30})/gi,

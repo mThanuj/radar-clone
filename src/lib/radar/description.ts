@@ -81,7 +81,7 @@ const UNCOPIED_SECTIONS: readonly DescriptionSectionKey[] = ["summary"];
 export function renderCanonicalText(
   radar: DescriptionValues & { number: number; title: string },
 ): string {
-  const parts = [`rdar://problem/${radar.number} — ${radar.title}`, ""];
+  const parts = [`rdar://${radar.number} — ${radar.title}`, ""];
   for (const section of DESCRIPTION_SECTIONS) {
     if (UNCOPIED_SECTIONS.includes(section.key)) continue;
     const value = radar[section.key];

@@ -301,7 +301,7 @@ model Milestone {
 
 model Radar {
   id String @id @default(cuid())
-  /// human-facing id: /radars/100000001 and rdar://problem/100000001
+  /// human-facing id: /radars/100000001 and rdar://100000001
   /// backed by radar_number_seq, created by hand in the init migration
   number  Int    @unique @default(dbgenerated("nextval('radar_number_seq')"))
   /// optimistic concurrency token, incremented by every audited write

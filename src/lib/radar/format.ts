@@ -7,12 +7,13 @@ export function radarHref(number: number | string): string {
 }
 
 export function rdarUri(number: number | string): string {
-  return `rdar://problem/${number}`;
+  return `rdar://${number}`;
 }
 
 /**
- * Matches radar references in free text so they can be linked:
- *   rdar://problem/100000042   rdar://100000042   <rdar://problem/100000042>
+ * Matches radar references in free text so they can be linked. The legacy
+ * `problem/` form is still accepted on input, but never emitted:
+ *   rdar://100000042   rdar://problem/100000042   <rdar://100000042>
  * Bare 9+ digit numbers are deliberately NOT matched — too many false hits
  * against build numbers and timestamps.
  */
